@@ -4,17 +4,22 @@ from rest_framework.response import Response
 from django.utils import timezone
 from .models import (
     Subject, Teacher, Division, Batch, Timetable, Lecture, Student,
-    Attendance, SyllabusPlan, SyllabusProgress, MarkType, Mark,
+    Attendance, Chapter, LecturePlan, MarkType, Mark,
     Notification, ResourceFile
 )
 from .serializers import (
     SubjectSerializer, TeacherSerializer, DivisionSerializer, 
     BatchSerializer, TimetableSerializer, LectureSerializer,
     StudentSerializer, AttendanceSerializer, 
-    SyllabusPlanSerializer, SyllabusProgressSerializer,
+    ChapterSerializer, LecturePlanSerializer,
     MarkTypeSerializer, MarkSerializer,
     NotificationSerializer, ResourceFileSerializer
 )
+from .utils import TimetableParser
+import os
+from django.conf import settings
+from django.core.files.storage import default_storage
+from django.core.files.base import ContentFile
 
 class NotificationViewSet(viewsets.ModelViewSet):
     queryset = Notification.objects.all().order_by('-created_at')
@@ -70,6 +75,96 @@ class TimetableViewSet(viewsets.ModelViewSet):
             queryset = queryset.filter(day=day)
         return queryset
 
+    @action(detail=False, methods=['post'])
+    def parse(self, request):
+        file_obj = request.FILES.get('file')
+        if not file_obj:
+            return Response({'error': 'No file provided'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Save temporary file
+        path = default_storage.save('tmp/' + file_obj.name, ContentFile(file_obj.read()))
+        full_path = os.path.join(settings.MEDIA_ROOT, path)
+        
+        try:
+            if file_obj.name.endswith('.xlsx'):
+                entries = TimetableParser.parse_excel(full_path)
+            elif file_obj.name.endswith('.pdf'):
+                entries = TimetableParser.parse_pdf(full_path)
+            else:
+                return Response({'error': 'Unsupported file format'}, status=status.HTTP_400_BAD_REQUEST)
+            
+            return Response(entries)
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        finally:
+            if os.path.exists(full_path):
+                os.remove(full_path)
+
+    @action(detail=False, methods=['post'])
+    def commit(self, request):
+        entries = request.data
+        if not isinstance(entries, list):
+            return Response({'error': 'Expected a list of entries'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        created_count = 0
+        warnings = []
+        
+        for entry in entries:
+            try:
+                # 1. Get or Create Subject
+                subject, _ = Subject.objects.get_or_create(
+                    code=entry['subject_code'],
+                    defaults={'name': entry['subject_code']}
+                )
+                
+                # 2. Get or Create Division
+                division, _ = Division.objects.get_or_create(name=entry['division'])
+                
+                # 3. Get or Create Batch (if provided)
+                batch = None
+                if entry.get('batch'):
+                    batch, _ = Batch.objects.get_or_create(
+                        name=entry['batch'],
+                        division=division
+                    )
+                
+                # 4. Teacher (Default to first teacher or create dummy for now)
+                # In real app, we'd use request.user.teacher or search by name
+                teacher = Teacher.objects.first()
+                if not teacher:
+                    teacher = Teacher.objects.create(name="Default Teacher", email="teacher@techmate.ai")
+
+                # 5. Check for conflicts (Warning only)
+                conflict = Timetable.objects.filter(
+                    day=entry['day'],
+                    start_time=entry['start_time'],
+                    room=entry['room']
+                ).exists()
+                if conflict:
+                    warnings.append(f"Conflict detected for {entry['subject_code']} on {entry['day']} at {entry['start_time']}. Entry still saved.")
+
+                # 6. Create Timetable Entry
+                Timetable.objects.create(
+                    day=entry['day'],
+                    start_time=entry['start_time'],
+                    end_time=entry['end_time'],
+                    subject=subject,
+                    subject_type=entry['subject_type'],
+                    division=division,
+                    batch=batch,
+                    room=entry.get('room', ''),
+                    teacher=teacher
+                )
+                created_count += 1
+            except Exception as e:
+                warnings.append(f"Error saving {entry.get('subject_code')}: {str(e)}")
+        
+        return Response({
+            'status': 'success',
+            'created_count': created_count,
+            'warnings': warnings
+        })
+
 class LectureViewSet(viewsets.ModelViewSet):
     queryset = Lecture.objects.all().order_by('-date')
     serializer_class = LectureSerializer
@@ -77,12 +172,8 @@ class LectureViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         lecture = serializer.save()
         if lecture.topic:
-            progress, created = SyllabusProgress.objects.get_or_create(
-                subject=lecture.timetable.subject,
-                topic_name=lecture.topic.topic_name
-            )
-            progress.lectures_completed += 1
-            progress.save()
+            lecture.topic.status = 'Completed'
+            lecture.topic.save()
 
     @action(detail=False, methods=['get'])
     def stats(self, request):
@@ -103,9 +194,9 @@ class LectureViewSet(viewsets.ModelViewSet):
                 att_percents.append((present / total_att) * 100)
         attendance_avg = sum(att_percents) / len(att_percents) if att_percents else 0
         
-        all_progress = SyllabusProgress.objects.all()
-        prog_percents = [p.completion_percentage for p in all_progress]
-        syllabus_avg = sum(prog_percents) / len(prog_percents) if prog_percents else 0
+        all_planned = LecturePlan.objects.count()
+        all_completed = LecturePlan.objects.filter(status='Completed').count()
+        syllabus_avg = round((all_completed / all_planned) * 100, 1) if all_planned > 0 else 0
         
         return Response({
             'total_today': total_today,
@@ -113,7 +204,7 @@ class LectureViewSet(viewsets.ModelViewSet):
             'pending_today': max(0, pending_today),
             'today_day': today_day,
             'attendance_avg': round(attendance_avg, 1),
-            'syllabus_avg': round(syllabus_avg, 1)
+            'syllabus_avg': syllabus_avg
         })
 
     @action(detail=False, methods=['get'])
@@ -181,13 +272,88 @@ class AttendanceViewSet(viewsets.ModelViewSet):
             results.append(AttendanceSerializer(obj).data)
         return Response(results, status=status.HTTP_201_CREATED)
 
-class SyllabusPlanViewSet(viewsets.ModelViewSet):
-    queryset = SyllabusPlan.objects.all()
-    serializer_class = SyllabusPlanSerializer
+class ChapterViewSet(viewsets.ModelViewSet):
+    queryset = Chapter.objects.all()
+    serializer_class = ChapterSerializer
 
-class SyllabusProgressViewSet(viewsets.ModelViewSet):
-    queryset = SyllabusProgress.objects.all()
-    serializer_class = SyllabusProgressSerializer
+class LecturePlanViewSet(viewsets.ModelViewSet):
+    queryset = LecturePlan.objects.all()
+    serializer_class = LecturePlanSerializer
+
+    @action(detail=False, methods=['post'])
+    def parse(self, request):
+        file_obj = request.FILES.get('file')
+        if not file_obj:
+            return Response({'error': 'No file provided'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Save temporary file
+        path = default_storage.save('tmp/' + file_obj.name, ContentFile(file_obj.read()))
+        full_path = os.path.join(settings.MEDIA_ROOT, path)
+        
+        try:
+            if file_obj.name.endswith('.xlsx'):
+                entries = TimetableParser.parse_syllabus(full_path)
+            else:
+                return Response({'error': 'Unsupported file format'}, status=status.HTTP_400_BAD_REQUEST)
+            
+            return Response(entries)
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        finally:
+            if os.path.exists(full_path):
+                os.remove(full_path)
+
+    @action(detail=False, methods=['post'])
+    def commit(self, request):
+        entries = request.data
+        if not isinstance(entries, list):
+            return Response({'error': 'Expected a list of entries'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        created_count = 0
+        warnings = []
+        
+        # 1. Identify Subject
+        subject = Subject.objects.first() 
+        if not subject:
+            return Response({'error': 'No subject found in database. Please create a subject first.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # 2. STRICT DELETE: Wipe existing syllabus for this subject
+        # This prevents UNIQUE constraint (subject, lecture_number) errors
+        try:
+            Chapter.objects.filter(subject=subject).delete()
+        except Exception as e:
+            return Response({'error': f'Failed to clear old syllabus data: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+        # 3. CLEAN INSERT: Process new entries
+        for entry in entries:
+            try:
+                # Get or Create Chapter
+                chapter, _ = Chapter.objects.get_or_create(
+                    subject=subject,
+                    name=entry['chapter_name'],
+                    defaults={
+                        'co_covered': entry.get('co', ''),
+                        'total_lectures_required': entry.get('lecture_count', 1)
+                    }
+                )
+                
+                # Create Lecture Plan Entry
+                # Field mapping: backend 'topic_name' matches 'topic_name' from parser
+                LecturePlan.objects.create(
+                    subject=subject,
+                    chapter=chapter,
+                    lecture_number=entry['lecture_number'],
+                    topic_name=entry['topic_name']
+                )
+                created_count += 1
+            except Exception as e:
+                warnings.append(f"Error saving L{entry.get('lecture_number')}: {str(e)}")
+        
+        return Response({
+            'status': 'success',
+            'created_count': created_count,
+            'warnings': warnings
+        })
 
 class MarkTypeViewSet(viewsets.ModelViewSet):
     queryset = MarkType.objects.all()

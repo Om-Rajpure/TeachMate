@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
-import type { Timetable, SyllabusPlan } from '../types';
+import type { Timetable, LecturePlan } from '../types';
 
-export const useDashboardLogic = (todayLectures: Timetable[], syllabusPlans: SyllabusPlan[]) => {
+export const useDashboardLogic = (todayLectures: Timetable[], lecturePlans: LecturePlan[]) => {
   const [now, setNow] = useState(new Date());
 
   // Update time every minute
@@ -31,18 +31,16 @@ export const useDashboardLogic = (todayLectures: Timetable[], syllabusPlans: Syl
 
   const syllabusSuggestion = useMemo(() => {
     const targetLecture = activeLecture || nextLecture;
-    if (!targetLecture || !syllabusPlans.length) return null;
+    if (!targetLecture || !lecturePlans.length) return null;
     
     // Suggest the next pending topic for the current subject
-    const subjectPlan = syllabusPlans.find(p => p.subject === targetLecture.subject);
+    // We filter by subject and find the first 'Pending' lecture
+    const nextPending = lecturePlans
+      .filter(p => p.subject === targetLecture.subject && p.status === 'Pending')
+      .sort((a, b) => a.lecture_number - b.lecture_number)[0];
     
-    // Fallback if no specific plan found, but we have some plans
-    if (!subjectPlan && syllabusPlans.length > 0) {
-        return syllabusPlans[0].topic_name;
-    }
-    
-    return subjectPlan?.topic_name || "Course Overview & Introduction";
-  }, [activeLecture, nextLecture, syllabusPlans]);
+    return nextPending?.topic_name || "Next Syllabus Topic";
+  }, [activeLecture, nextLecture, lecturePlans]);
 
   return {
     now,

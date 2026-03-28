@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from .models import (
     Subject, Teacher, Division, Batch, Timetable, Lecture, 
-    Student, Attendance, SyllabusPlan, SyllabusProgress, MarkType, Mark,
+    Student, Attendance, Chapter, LecturePlan, MarkType, Mark,
     Notification, ResourceFile
 )
 
@@ -79,30 +79,24 @@ class AttendanceSerializer(serializers.ModelSerializer):
         model = Attendance
         fields = '__all__'
 
-class SyllabusPlanSerializer(serializers.ModelSerializer):
+class ChapterSerializer(serializers.ModelSerializer):
     subject_name = serializers.CharField(source='subject.name', read_only=True)
 
     class Meta:
-        model = SyllabusPlan
+        model = Chapter
         fields = '__all__'
 
-class SyllabusProgressSerializer(serializers.ModelSerializer):
+class LecturePlanSerializer(serializers.ModelSerializer):
     subject_name = serializers.CharField(source='subject.name', read_only=True)
-    completion_percentage = serializers.SerializerMethodField()
+    chapter_name = serializers.CharField(source='chapter.name', read_only=True)
 
     class Meta:
-        model = SyllabusProgress
+        model = LecturePlan
         fields = '__all__'
-
-    def get_completion_percentage(self, obj):
-        plan = SyllabusPlan.objects.filter(subject=obj.subject, topic_name=obj.topic_name).first()
-        if not plan or plan.total_lectures_required == 0:
-            return 0
-        return round((obj.lectures_completed / plan.total_lectures_required) * 100, 2)
 
 class LectureSerializer(serializers.ModelSerializer):
     timetable_details = TimetableSerializer(source='timetable', read_only=True)
-    topic_details = SyllabusPlanSerializer(source='topic', read_only=True)
+    topic_details = LecturePlanSerializer(source='topic', read_only=True)
     attendance_count = serializers.SerializerMethodField()
 
     class Meta:

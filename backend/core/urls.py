@@ -5,7 +5,7 @@ from .views import (
     SubjectViewSet, TeacherViewSet, DivisionViewSet, 
     BatchViewSet, TimetableViewSet, LectureViewSet,
     StudentViewSet, AttendanceViewSet, 
-    SyllabusPlanViewSet, SyllabusProgressViewSet,
+    ChapterViewSet, LecturePlanViewSet,
     MarkTypeViewSet, MarkViewSet, AnalyticsViewSet,
     NotificationViewSet, ResourceFileViewSet
 )
@@ -19,8 +19,8 @@ router.register(r'timetable', TimetableViewSet)
 router.register(r'lectures', LectureViewSet)
 router.register(r'students', StudentViewSet)
 router.register(r'attendance', AttendanceViewSet)
-router.register(r'syllabus/plan', SyllabusPlanViewSet)
-router.register(r'syllabus/progress', SyllabusProgressViewSet)
+router.register(r'syllabus/chapters', ChapterViewSet)
+router.register(r'syllabus/lecture-plan', LecturePlanViewSet)
 router.register(r'mark-types', MarkTypeViewSet)
 router.register(r'marks', MarkViewSet)
 router.register(r'notifications', NotificationViewSet)

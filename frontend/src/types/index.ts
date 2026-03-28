@@ -61,21 +61,24 @@ export interface Student {
   attendance_percentage: number;
 }
 
-export interface SyllabusPlan {
+export interface Chapter {
   id: number;
   subject: number;
   subject_name: string;
-  topic_name: string;
+  name: string;
+  co_covered: string;
   total_lectures_required: number;
 }
 
-export interface SyllabusProgress {
+export interface LecturePlan {
   id: number;
   subject: number;
   subject_name: string;
+  chapter: number;
+  chapter_name: string;
+  lecture_number: number;
   topic_name: string;
-  lectures_completed: number;
-  completion_percentage: number;
+  status: 'Pending' | 'Completed';
 }
 
 export interface Attendance {

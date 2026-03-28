@@ -1,7 +1,7 @@
 import axios from 'axios';
 import type { 
-  Subject, Teacher, Division, Batch, Timetable, Student, 
-  SyllabusPlan, SyllabusProgress, Attendance, DashboardStats,
+  Subject, Division, Batch, Timetable, Student, 
+  Chapter, LecturePlan, DashboardStats,
   MarkType, Mark, ClassAnalytics, Notification, ResourceFile
 } from '../types';
 
@@ -37,6 +37,14 @@ export const timetableService = {
   create: (data: Partial<Timetable>) => api.post<Timetable>('/timetable/', data),
   update: (id: number, data: Partial<Timetable>) => api.put<Timetable>(`/timetable/${id}/`, data),
   delete: (id: number) => api.delete(`/timetable/${id}/`),
+  parse: (file: File) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return api.post<any[]>('/timetable/parse/', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+  },
+  commit: (data: any[]) => api.post('/timetable/commit/', data),
 };
 
 export const lectureService = {
@@ -68,9 +76,16 @@ export const attendanceService = {
 };
 
 export const syllabusService = {
-  getPlans: (subjectId?: number) => api.get<SyllabusPlan[]>(`/syllabus/plan/${subjectId ? `?subject=${subjectId}` : ''}`),
-  createPlan: (data: Partial<SyllabusPlan>) => api.post<SyllabusPlan>('/syllabus/plan/', data),
-  getProgress: (subjectId?: number) => api.get<SyllabusProgress[]>(`/syllabus/progress/${subjectId ? `?subject=${subjectId}` : ''}`),
+  getChapters: (subjectId?: number) => api.get<Chapter[]>(`/syllabus/chapters/${subjectId ? `?subject=${subjectId}` : ''}`),
+  getLecturePlans: (subjectId?: number) => api.get<LecturePlan[]>(`/syllabus/lecture-plan/${subjectId ? `?subject=${subjectId}` : ''}`),
+  parse: (file: File) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return api.post<any[]>('/syllabus/lecture-plan/parse/', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+  },
+  commit: (data: any[]) => api.post('/syllabus/lecture-plan/commit/', data),
 };
 
 export const markTypeService = {

@@ -42,6 +42,11 @@ class Timetable(models.Model):
     end_time = models.TimeField()
     teacher = models.ForeignKey(Teacher, on_delete=models.CASCADE)
     subject = models.ForeignKey(Subject, on_delete=models.CASCADE)
+    subject_type = models.CharField(
+        max_length=10, 
+        choices=[('Theory', 'Theory'), ('Lab', 'Lab')],
+        default='Theory'
+    )
     division = models.ForeignKey(Division, on_delete=models.CASCADE)
     batch = models.ForeignKey(Batch, on_delete=models.SET_NULL, null=True, blank=True)
     room = models.CharField(max_length=50, blank=True, null=True)
@@ -58,28 +63,32 @@ class Student(models.Model):
     def __str__(self):
         return f"{self.roll_number} - {self.name}"
 
-class SyllabusPlan(models.Model):
-    subject = models.ForeignKey(Subject, on_delete=models.CASCADE, related_name='syllabus_plans')
-    topic_name = models.CharField(max_length=200)
-    total_lectures_required = models.PositiveIntegerField()
+class Chapter(models.Model):
+    subject = models.ForeignKey(Subject, on_delete=models.CASCADE, related_name='chapters')
+    name = models.CharField(max_length=200)
+    co_covered = models.CharField(max_length=50, blank=True)
+    total_lectures_required = models.PositiveIntegerField(default=1)
 
     def __str__(self):
-        return f"{self.subject.name}: {self.topic_name}"
+        return f"{self.subject.name}: {self.name}"
 
-class SyllabusProgress(models.Model):
-    subject = models.ForeignKey(Subject, on_delete=models.CASCADE, related_name='syllabus_progress')
-    topic_name = models.CharField(max_length=200)
-    lectures_completed = models.PositiveIntegerField(default=0)
+class LecturePlan(models.Model):
+    subject = models.ForeignKey(Subject, on_delete=models.CASCADE, related_name='lecture_plans')
+    chapter = models.ForeignKey(Chapter, on_delete=models.CASCADE, related_name='lectures')
+    lecture_number = models.PositiveIntegerField()
+    topic_name = models.CharField(max_length=500)
+    status = models.CharField(
+        max_length=20, 
+        choices=[('Pending', 'Pending'), ('Completed', 'Completed')], 
+        default='Pending'
+    )
 
-    @property
-    def completion_percentage(self):
-        plan = SyllabusPlan.objects.filter(subject=self.subject, topic_name=self.topic_name).first()
-        if plan and plan.total_lectures_required > 0:
-            return min(100, round((self.lectures_completed / plan.total_lectures_required) * 100, 2))
-        return 0
+    class Meta:
+        ordering = ['lecture_number']
+        unique_together = ('subject', 'lecture_number')
 
     def __str__(self):
-        return f"{self.subject.name}: {self.topic_name} ({self.lectures_completed})"
+        return f"L{self.lecture_number}: {self.topic_name}"
 
 class Lecture(models.Model):
     STATUS_CHOICES = [
@@ -89,7 +98,7 @@ class Lecture(models.Model):
 
     timetable = models.ForeignKey(Timetable, on_delete=models.CASCADE)
     date = models.DateField()
-    topic = models.ForeignKey(SyllabusPlan, on_delete=models.SET_NULL, null=True, blank=True)
+    topic = models.ForeignKey(LecturePlan, on_delete=models.SET_NULL, null=True, blank=True)
     topic_taught = models.TextField(blank=True) # For manual entry if not in plan
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='Completed')
     remarks = models.TextField(blank=True)

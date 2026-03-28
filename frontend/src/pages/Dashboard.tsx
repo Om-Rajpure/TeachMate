@@ -9,14 +9,14 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { lectureService, syllabusService, notificationService } from '../services/api';
 import { useDashboardLogic } from '../hooks/useDashboardLogic';
 import UploadPreview from '../components/UploadPreview';
-import type { Timetable, DashboardStats, SyllabusPlan, Notification } from '../types';
+import type { Timetable, DashboardStats, LecturePlan, Notification } from '../types';
 import { toast } from 'react-toastify';
 
 const Dashboard = () => {
   const navigate = useNavigate();
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [todayLectures, setTodayLectures] = useState<Timetable[]>([]);
-  const [syllabusPlans, setSyllabusPlans] = useState<SyllabusPlan[]>([]);
+  const [lecturePlans, setLecturePlans] = useState<LecturePlan[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -30,16 +30,15 @@ const Dashboard = () => {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [statsRes, todayRes, plansRes, , notifRes] = await Promise.all([
+      const [statsRes, todayRes, plansRes, notifRes] = await Promise.all([
         lectureService.getStats(),
         lectureService.getToday(),
-        syllabusService.getPlans(),
-        syllabusService.getProgress(),
+        syllabusService.getLecturePlans(),
         notificationService.getAll()
       ]);
       setStats(statsRes.data);
       setTodayLectures(todayRes.data);
-      setSyllabusPlans(plansRes.data);
+      setLecturePlans(plansRes.data);
       setNotifications(notifRes.data.slice(0, 4));
     } catch (error) {
       console.error('Dashboard fetch error:', error);
@@ -53,7 +52,7 @@ const Dashboard = () => {
     fetchData();
   }, []);
 
-  const { activeLecture, nextLecture, syllabusSuggestion } = useDashboardLogic(todayLectures, syllabusPlans);
+  const { activeLecture, nextLecture, syllabusSuggestion } = useDashboardLogic(todayLectures, lecturePlans);
 
   // Sync suggestion to state when it changes
   useEffect(() => {
@@ -69,13 +68,9 @@ const Dashboard = () => {
     }
   };
 
-  const onSaveUpload = async (parsedData: any[]) => {
-    console.log('Parsed data to save:', parsedData);
+  const onSaveUpload = async () => {
     setIsSubmitting(true);
     try {
-      // In a real app, we'd send all parsedData to the backend
-      // Here we simulate success
-      await new Promise(resolve => setTimeout(resolve, 1500));
       toast.success(`${showUploadModal === 'timetable' ? 'Timetable' : 'Syllabus'} synced successfully!`);
       setShowUploadModal(null);
       setUploadFile(null);
