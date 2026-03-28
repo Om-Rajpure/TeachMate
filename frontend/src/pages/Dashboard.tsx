@@ -8,55 +8,114 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import { lectureService, syllabusService, notificationService } from '../services/api';
 import { useDashboardLogic } from '../hooks/useDashboardLogic';
-import type { Timetable, DashboardStats, SyllabusPlan, SyllabusProgress, Notification } from '../types';
+import UploadPreview from '../components/UploadPreview';
+import type { Timetable, DashboardStats, SyllabusPlan, Notification } from '../types';
+import { toast } from 'react-toastify';
 
 const Dashboard = () => {
   const navigate = useNavigate();
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [todayLectures, setTodayLectures] = useState<Timetable[]>([]);
   const [syllabusPlans, setSyllabusPlans] = useState<SyllabusPlan[]>([]);
-  const [syllabusProgress, setSyllabusProgress] = useState<SyllabusProgress[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
 
   // UI States
   const [showUploadModal, setShowUploadModal] = useState<'timetable' | 'syllabus' | null>(null);
-  const [isParsing, setIsParsing] = useState(false);
+  const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [isLectureExpanded, setIsLectureExpanded] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [topicTaught, setTopicTaught] = useState('');
+
+  const fetchData = async () => {
+    try {
+      setLoading(true);
+      const [statsRes, todayRes, plansRes, , notifRes] = await Promise.all([
+        lectureService.getStats(),
+        lectureService.getToday(),
+        syllabusService.getPlans(),
+        syllabusService.getProgress(),
+        notificationService.getAll()
+      ]);
+      setStats(statsRes.data);
+      setTodayLectures(todayRes.data);
+      setSyllabusPlans(plansRes.data);
+      setNotifications(notifRes.data.slice(0, 4));
+    } catch (error) {
+      console.error('Dashboard fetch error:', error);
+      toast.error('Failed to load dashboard data');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const [statsRes, todayRes, plansRes, progRes, notifRes] = await Promise.all([
-          lectureService.getStats(),
-          lectureService.getToday(),
-          syllabusService.getPlans(),
-          syllabusService.getProgress(),
-          notificationService.getAll()
-        ]);
-        setStats(statsRes.data);
-        setTodayLectures(todayRes.data);
-        setSyllabusPlans(plansRes.data);
-        setSyllabusProgress(progRes.data.slice(0, 3));
-        setNotifications(notifRes.data.slice(0, 4));
-      } catch (error) {
-        console.error('Dashboard fetch error:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
     fetchData();
   }, []);
 
   const { activeLecture, nextLecture, syllabusSuggestion } = useDashboardLogic(todayLectures, syllabusPlans);
 
-  const handleMockUpload = (type: 'timetable' | 'syllabus') => {
-    setIsParsing(true);
-    setTimeout(() => {
-      setIsParsing(false);
+  // Sync suggestion to state when it changes
+  useEffect(() => {
+    if (syllabusSuggestion && !topicTaught) {
+      setTopicTaught(syllabusSuggestion);
+    }
+  }, [syllabusSuggestion, topicTaught]);
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setUploadFile(file);
+    }
+  };
+
+  const onSaveUpload = async (parsedData: any[]) => {
+    console.log('Parsed data to save:', parsedData);
+    setIsSubmitting(true);
+    try {
+      // In a real app, we'd send all parsedData to the backend
+      // Here we simulate success
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      toast.success(`${showUploadModal === 'timetable' ? 'Timetable' : 'Syllabus'} synced successfully!`);
       setShowUploadModal(null);
-      alert(`${type.charAt(0).toUpperCase() + type.slice(1)} parsed successfully!`);
-    }, 2000);
+      setUploadFile(null);
+      fetchData();
+    } catch (error) {
+      toast.error('Failed to sync data');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleStartLecture = async () => {
+    if (!activeLecture) return;
+    setIsSubmitting(true);
+    try {
+      await lectureService.markCompleted(activeLecture.id, topicTaught || 'General Lecture');
+      toast.success('Lecture marked as completed!');
+      setIsLectureExpanded(false);
+      fetchData();
+    } catch (error) {
+       toast.error('Failed to update lecture');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleSkipLecture = async () => {
+    if (!activeLecture) return;
+    if (!confirm('Are you sure you want to skip this lecture?')) return;
+    
+    setIsSubmitting(true);
+    try {
+      await lectureService.markSkipped(activeLecture.id, 'Manually skipped from dashboard');
+      toast.success('Lecture marked as skipped');
+      fetchData();
+    } catch (error) {
+      toast.error('Failed to skip lecture');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   if (loading) {
@@ -113,11 +172,17 @@ const Dashboard = () => {
                 <div className="flex flex-col sm:flex-row gap-3 items-start md:items-center">
                   <button 
                     onClick={() => setIsLectureExpanded(!isLectureExpanded)}
-                    className="px-8 py-4 bg-primary text-white rounded-2xl font-bold flex items-center gap-2 shadow-lg shadow-primary/20 hover:bg-primary-dark transition-all active:scale-95"
+                    disabled={activeLecture.lecture_status === 'Completed' || isSubmitting}
+                    className="px-8 py-4 bg-primary text-white rounded-2xl font-bold flex items-center gap-2 shadow-lg shadow-primary/20 hover:bg-primary-dark transition-all active:scale-95 disabled:opacity-50"
                   >
-                    <Plus size={20} /> Start Lecture
+                    {activeLecture.lecture_status === 'Completed' ? <CheckCircle2 size={20} /> : <Plus size={20} />}
+                    {activeLecture.lecture_status === 'Completed' ? 'Already Done' : 'Start Lecture'}
                   </button>
-                  <button className="px-8 py-4 bg-white text-text-muted border border-gray-200 rounded-2xl font-bold flex items-center gap-2 hover:bg-gray-50 transition-all">
+                  <button 
+                    onClick={handleSkipLecture}
+                    disabled={activeLecture.lecture_status === 'Completed' || isSubmitting}
+                    className="px-8 py-4 bg-white text-text-muted border border-gray-200 rounded-2xl font-bold flex items-center gap-2 hover:bg-gray-50 transition-all disabled:opacity-50"
+                  >
                     <XCircle size={20} /> Skip
                   </button>
                 </div>
@@ -139,7 +204,8 @@ const Dashboard = () => {
                           <div className="relative">
                             <input 
                               type="text" 
-                              defaultValue={syllabusSuggestion || ''}
+                              value={topicTaught}
+                              onChange={(e) => setTopicTaught(e.target.value)}
                               className="w-full px-5 py-4 rounded-2xl border border-gray-200 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none font-medium"
                               placeholder="e.g. Introduction to AI"
                             />
@@ -149,8 +215,13 @@ const Dashboard = () => {
                           </div>
                         </div>
                         <div className="flex items-end gap-3">
-                           <button className="flex-1 px-8 py-4 bg-emerald-500 text-white rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-emerald-600 transition-all">
-                             <CheckCircle2 size={20} /> Mark Completed
+                           <button 
+                             onClick={handleStartLecture}
+                             disabled={isSubmitting}
+                             className="flex-1 px-8 py-4 bg-emerald-500 text-white rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-emerald-600 transition-all active:scale-95 disabled:opacity-70"
+                           >
+                             {isSubmitting ? <span className="animate-spin text-xl">◌</span> : <CheckCircle2 size={20} />}
+                             Mark Completed
                            </button>
                            <button 
                              onClick={() => navigate('/app/attendance')}
@@ -336,7 +407,7 @@ const Dashboard = () => {
           <div className="fixed inset-0 z-[100] flex items-center justify-center px-6">
             <motion.div 
               initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              onClick={() => !isParsing && setShowUploadModal(null)}
+              onClick={() => !isSubmitting && setShowUploadModal(null)}
               className="absolute inset-0 bg-text/40 backdrop-blur-sm"
             />
             <motion.div 
@@ -352,21 +423,20 @@ const Dashboard = () => {
                 Select a file to parse and sync with your dashboard.
               </p>
 
-              {isParsing ? (
-                <div className="py-12 flex flex-col items-center gap-6">
-                  <div className="relative w-20 h-20">
-                    <div className="absolute inset-0 border-4 border-primary/20 rounded-full" />
-                    <div className="absolute inset-0 border-4 border-primary border-t-transparent rounded-full animate-spin" />
-                  </div>
-                  <div className="text-center">
-                    <p className="font-bold text-text">AI is parsing your file...</p>
-                    <p className="text-sm text-text-muted mt-1 italic">Detecting subjects and time slots</p>
-                  </div>
-                </div>
+              {uploadFile ? (
+                <UploadPreview 
+                  type={showUploadModal || 'timetable'} 
+                  file={uploadFile} 
+                  onClose={() => {
+                    setUploadFile(null);
+                    setShowUploadModal(null);
+                  }}
+                  onSave={onSaveUpload}
+                />
               ) : (
                 <div className="space-y-6">
                   <label className="group relative block px-10 py-16 border-2 border-dashed border-gray-200 rounded-[2rem] hover:border-primary/50 hover:bg-primary/5 transition-all text-center cursor-pointer">
-                    <input type="file" className="absolute inset-0 opacity-0 cursor-pointer" onChange={() => handleMockUpload(showUploadModal)} />
+                    <input type="file" className="absolute inset-0 opacity-0 cursor-pointer" onChange={handleFileUpload} />
                     <div className="flex flex-col items-center gap-4 text-text-muted group-hover:text-primary">
                       <div className="p-4 bg-gray-50 rounded-2xl group-hover:bg-primary/10 transition-colors">
                         <Upload size={32} />

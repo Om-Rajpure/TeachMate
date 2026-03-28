@@ -44,6 +44,7 @@ class Timetable(models.Model):
     subject = models.ForeignKey(Subject, on_delete=models.CASCADE)
     division = models.ForeignKey(Division, on_delete=models.CASCADE)
     batch = models.ForeignKey(Batch, on_delete=models.SET_NULL, null=True, blank=True)
+    room = models.CharField(max_length=50, blank=True, null=True)
 
     def __str__(self):
         return f"{self.day}: {self.subject.name} ({self.start_time}-{self.end_time})"
@@ -69,6 +70,13 @@ class SyllabusProgress(models.Model):
     subject = models.ForeignKey(Subject, on_delete=models.CASCADE, related_name='syllabus_progress')
     topic_name = models.CharField(max_length=200)
     lectures_completed = models.PositiveIntegerField(default=0)
+
+    @property
+    def completion_percentage(self):
+        plan = SyllabusPlan.objects.filter(subject=self.subject, topic_name=self.topic_name).first()
+        if plan and plan.total_lectures_required > 0:
+            return min(100, round((self.lectures_completed / plan.total_lectures_required) * 100, 2))
+        return 0
 
     def __str__(self):
         return f"{self.subject.name}: {self.topic_name} ({self.lectures_completed})"

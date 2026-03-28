@@ -45,6 +45,10 @@ export const lectureService = {
   getToday: () => api.get<(Timetable & { lecture_status: string; lecture_id: number })[]>('/lectures/today/'),
   create: (data: any) => api.post('/lectures/', data),
   update: (id: number, data: any) => api.put(`/lectures/${id}/`, data),
+  markCompleted: (timetableId: number, topicTaught: string, remarks: string = '') => 
+    api.post('/lectures/', { timetable: timetableId, topic_taught: topicTaught, status: 'Completed', remarks }),
+  markSkipped: (timetableId: number, remarks: string = '') => 
+    api.post('/lectures/', { timetable: timetableId, topic_taught: 'Skipped', status: 'Skipped', remarks }),
 };
 
 export const studentService = {
