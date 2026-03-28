@@ -1,11 +1,20 @@
 from django.db import models
 
 class Subject(models.Model):
+    SUBJECT_TYPES = [
+        ('theory', 'Theory'),
+        ('practical', 'Practical'),
+    ]
     name = models.CharField(max_length=100)
     code = models.CharField(max_length=20, unique=True)
+    subject_type = models.CharField(
+        max_length=20, 
+        choices=SUBJECT_TYPES, 
+        default='theory'
+    )
 
     def __str__(self):
-        return f"{self.name} ({self.code})"
+        return f"{self.name} ({self.code}) - {self.get_subject_type_display()}"
 
 class Teacher(models.Model):
     name = models.CharField(max_length=100)
@@ -90,6 +99,23 @@ class LecturePlan(models.Model):
     def __str__(self):
         return f"L{self.lecture_number}: {self.topic_name}"
 
+class Experiment(models.Model):
+    subject = models.ForeignKey(Subject, on_delete=models.CASCADE, related_name='experiments')
+    experiment_number = models.PositiveIntegerField()
+    title = models.CharField(max_length=500)
+    status = models.CharField(
+        max_length=20, 
+        choices=[('Pending', 'Pending'), ('Completed', 'Completed')], 
+        default='Pending'
+    )
+
+    class Meta:
+        ordering = ['experiment_number']
+        unique_together = ('subject', 'experiment_number')
+
+    def __str__(self):
+        return f"Exp {self.experiment_number}: {self.title}"
+
 class Lecture(models.Model):
     STATUS_CHOICES = [
         ('Completed', 'Completed'),
@@ -99,6 +125,7 @@ class Lecture(models.Model):
     timetable = models.ForeignKey(Timetable, on_delete=models.CASCADE)
     date = models.DateField()
     topic = models.ForeignKey(LecturePlan, on_delete=models.SET_NULL, null=True, blank=True)
+    experiment = models.ForeignKey(Experiment, on_delete=models.SET_NULL, null=True, blank=True)
     topic_taught = models.TextField(blank=True) # For manual entry if not in plan
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='Completed')
     remarks = models.TextField(blank=True)

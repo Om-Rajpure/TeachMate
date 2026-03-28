@@ -7,7 +7,7 @@ from .views import (
     StudentViewSet, AttendanceViewSet, 
     ChapterViewSet, LecturePlanViewSet,
     MarkTypeViewSet, MarkViewSet, AnalyticsViewSet,
-    NotificationViewSet, ResourceFileViewSet
+    NotificationViewSet, ResourceFileViewSet, ExperimentViewSet
 )
 
 router = DefaultRouter()
@@ -21,6 +21,7 @@ router.register(r'students', StudentViewSet)
 router.register(r'attendance', AttendanceViewSet)
 router.register(r'syllabus/chapters', ChapterViewSet)
 router.register(r'syllabus/lecture-plan', LecturePlanViewSet)
+router.register(r'syllabus/experiments', ExperimentViewSet)
 router.register(r'mark-types', MarkTypeViewSet)
 router.register(r'marks', MarkViewSet)
 router.register(r'notifications', NotificationViewSet)

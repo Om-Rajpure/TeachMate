@@ -5,7 +5,7 @@ from django.utils import timezone
 from .models import (
     Subject, Teacher, Division, Batch, Timetable, Lecture, Student,
     Attendance, Chapter, LecturePlan, MarkType, Mark,
-    Notification, ResourceFile
+    Notification, ResourceFile, Experiment
 )
 from .serializers import (
     SubjectSerializer, TeacherSerializer, DivisionSerializer, 
@@ -13,7 +13,8 @@ from .serializers import (
     StudentSerializer, AttendanceSerializer, 
     ChapterSerializer, LecturePlanSerializer,
     MarkTypeSerializer, MarkSerializer,
-    NotificationSerializer, ResourceFileSerializer
+    NotificationSerializer, ResourceFileSerializer,
+    ExperimentSerializer
 )
 from .utils import TimetableParser
 import os
@@ -81,7 +82,6 @@ class TimetableViewSet(viewsets.ModelViewSet):
         if not file_obj:
             return Response({'error': 'No file provided'}, status=status.HTTP_400_BAD_REQUEST)
         
-        # Save temporary file
         path = default_storage.save('tmp/' + file_obj.name, ContentFile(file_obj.read()))
         full_path = os.path.join(settings.MEDIA_ROOT, path)
         
@@ -111,30 +111,20 @@ class TimetableViewSet(viewsets.ModelViewSet):
         
         for entry in entries:
             try:
-                # 1. Get or Create Subject
                 subject, _ = Subject.objects.get_or_create(
                     code=entry['subject_code'],
                     defaults={'name': entry['subject_code']}
                 )
-                
-                # 2. Get or Create Division
                 division, _ = Division.objects.get_or_create(name=entry['division'])
-                
-                # 3. Get or Create Batch (if provided)
                 batch = None
                 if entry.get('batch'):
                     batch, _ = Batch.objects.get_or_create(
                         name=entry['batch'],
                         division=division
                     )
-                
-                # 4. Teacher (Default to first teacher or create dummy for now)
-                # In real app, we'd use request.user.teacher or search by name
                 teacher = Teacher.objects.first()
                 if not teacher:
                     teacher = Teacher.objects.create(name="Default Teacher", email="teacher@techmate.ai")
-
-                # 5. Check for conflicts (Warning only)
                 conflict = Timetable.objects.filter(
                     day=entry['day'],
                     start_time=entry['start_time'],
@@ -142,8 +132,6 @@ class TimetableViewSet(viewsets.ModelViewSet):
                 ).exists()
                 if conflict:
                     warnings.append(f"Conflict detected for {entry['subject_code']} on {entry['day']} at {entry['start_time']}. Entry still saved.")
-
-                # 6. Create Timetable Entry
                 Timetable.objects.create(
                     day=entry['day'],
                     start_time=entry['start_time'],
@@ -165,6 +153,41 @@ class TimetableViewSet(viewsets.ModelViewSet):
             'warnings': warnings
         })
 
+class ExperimentViewSet(viewsets.ModelViewSet):
+    queryset = Experiment.objects.all().order_by('experiment_number')
+    serializer_class = ExperimentSerializer
+
+    def get_queryset(self):
+        queryset = Experiment.objects.all().order_by('experiment_number')
+        subject = self.request.query_params.get('subject')
+        if subject:
+            queryset = queryset.filter(subject_id=subject)
+        return queryset
+
+    @action(detail=False, methods=['post'])
+    def commit(self, request):
+        entries = request.data.get('entries', [])
+        subject_id = request.data.get('subject_id')
+        
+        if not subject_id:
+            return Response({'error': 'subject_id is required'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            subject = Subject.objects.get(id=subject_id)
+        except Subject.DoesNotExist:
+            return Response({'error': 'Subject not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        Experiment.objects.filter(subject=subject).delete()
+        created_count = 0
+        for entry in entries:
+            Experiment.objects.create(
+                subject=subject,
+                experiment_number=entry['experiment_number'],
+                title=entry['title']
+            )
+            created_count += 1
+        return Response({'status': 'success', 'created_count': created_count})
+
 class LectureViewSet(viewsets.ModelViewSet):
     queryset = Lecture.objects.all().order_by('-date')
     serializer_class = LectureSerializer
@@ -174,6 +197,9 @@ class LectureViewSet(viewsets.ModelViewSet):
         if lecture.topic:
             lecture.topic.status = 'Completed'
             lecture.topic.save()
+        if lecture.experiment:
+            lecture.experiment.status = 'Completed'
+            lecture.experiment.save()
 
     @action(detail=False, methods=['get'])
     def stats(self, request):
@@ -184,7 +210,6 @@ class LectureViewSet(viewsets.ModelViewSet):
         completed_lectures = Lecture.objects.filter(date=today, status='Completed').count()
         skipped_lectures = Lecture.objects.filter(date=today, status='Skipped').count()
         pending_today = total_today - (completed_lectures + skipped_lectures)
-        
         all_students = Student.objects.all()
         att_percents = []
         for s in all_students:
@@ -193,11 +218,9 @@ class LectureViewSet(viewsets.ModelViewSet):
                 present = Attendance.objects.filter(student=s, status='Present').count()
                 att_percents.append((present / total_att) * 100)
         attendance_avg = sum(att_percents) / len(att_percents) if att_percents else 0
-        
-        all_planned = LecturePlan.objects.count()
-        all_completed = LecturePlan.objects.filter(status='Completed').count()
-        syllabus_avg = round((all_completed / all_planned) * 100, 1) if all_planned > 0 else 0
-        
+        total_p = LecturePlan.objects.count() + Experiment.objects.count()
+        done_p = LecturePlan.objects.filter(status='Completed').count() + Experiment.objects.filter(status='Completed').count()
+        syllabus_avg = round((done_p / total_p) * 100, 1) if total_p > 0 else 0
         return Response({
             'total_today': total_today,
             'completed_today': completed_lectures,
@@ -276,6 +299,13 @@ class ChapterViewSet(viewsets.ModelViewSet):
     queryset = Chapter.objects.all()
     serializer_class = ChapterSerializer
 
+    def get_queryset(self):
+        queryset = Chapter.objects.all()
+        subject = self.request.query_params.get('subject')
+        if subject:
+            queryset = queryset.filter(subject_id=subject)
+        return queryset
+
 class LecturePlanViewSet(viewsets.ModelViewSet):
     queryset = LecturePlan.objects.all().order_by('lecture_number')
     serializer_class = LecturePlanSerializer
@@ -290,19 +320,16 @@ class LecturePlanViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['post'])
     def parse(self, request):
         file_obj = request.FILES.get('file')
+        subject_type = request.data.get('type', 'theory')
         if not file_obj:
             return Response({'error': 'No file provided'}, status=status.HTTP_400_BAD_REQUEST)
-        
-        # Save temporary file
         path = default_storage.save('tmp/' + file_obj.name, ContentFile(file_obj.read()))
         full_path = os.path.join(settings.MEDIA_ROOT, path)
-        
         try:
-            if file_obj.name.endswith('.xlsx'):
-                entries = TimetableParser.parse_syllabus(full_path)
+            if subject_type == 'practical':
+                entries = TimetableParser.parse_practical(full_path)
             else:
-                return Response({'error': 'Unsupported file format'}, status=status.HTTP_400_BAD_REQUEST)
-            
+                entries = TimetableParser.parse_syllabus(full_path)
             return Response(entries)
         except Exception as e:
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
@@ -312,29 +339,19 @@ class LecturePlanViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=['post'])
     def commit(self, request):
-        entries = request.data
-        if not isinstance(entries, list):
-            return Response({'error': 'Expected a list of entries'}, status=status.HTTP_400_BAD_REQUEST)
-        
+        entries = request.data.get('entries', [])
+        subject_id = request.data.get('subject_id')
+        if not subject_id:
+            return Response({'error': 'subject_id is required'}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            subject = Subject.objects.get(id=subject_id)
+        except Subject.DoesNotExist:
+            return Response({'error': 'Subject not found'}, status=status.HTTP_404_NOT_FOUND)
+        Chapter.objects.filter(subject=subject).delete()
         created_count = 0
         warnings = []
-        
-        # 1. Identify Subject
-        subject = Subject.objects.first() 
-        if not subject:
-            return Response({'error': 'No subject found in database. Please create a subject first.'}, status=status.HTTP_400_BAD_REQUEST)
-
-        # 2. STRICT DELETE: Wipe existing syllabus for this subject
-        # This prevents UNIQUE constraint (subject, lecture_number) errors
-        try:
-            Chapter.objects.filter(subject=subject).delete()
-        except Exception as e:
-            return Response({'error': f'Failed to clear old syllabus data: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-        
-        # 3. CLEAN INSERT: Process new entries
         for entry in entries:
             try:
-                # Get or Create Chapter
                 chapter, _ = Chapter.objects.get_or_create(
                     subject=subject,
                     name=entry['chapter_name'],
@@ -343,9 +360,6 @@ class LecturePlanViewSet(viewsets.ModelViewSet):
                         'total_lectures_required': entry.get('lecture_count', 1)
                     }
                 )
-                
-                # Create Lecture Plan Entry
-                # Field mapping: backend 'topic_name' matches 'topic_name' from parser
                 LecturePlan.objects.create(
                     subject=subject,
                     chapter=chapter,
@@ -355,12 +369,7 @@ class LecturePlanViewSet(viewsets.ModelViewSet):
                 created_count += 1
             except Exception as e:
                 warnings.append(f"Error saving L{entry.get('lecture_number')}: {str(e)}")
-        
-        return Response({
-            'status': 'success',
-            'created_count': created_count,
-            'warnings': warnings
-        })
+        return Response({'status': 'success', 'created_count': created_count, 'warnings': warnings})
 
 class MarkTypeViewSet(viewsets.ModelViewSet):
     queryset = MarkType.objects.all()

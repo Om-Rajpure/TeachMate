@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
-import type { Timetable, LecturePlan } from '../types';
+import type { Timetable, LecturePlan, Experiment } from '../types';
 
-export const useDashboardLogic = (todayLectures: Timetable[], lecturePlans: LecturePlan[]) => {
+export const useDashboardLogic = (todayLectures: Timetable[], lecturePlans: LecturePlan[], experiments: Experiment[] = []) => {
   const [now, setNow] = useState(new Date());
 
   // Update time every minute
@@ -31,16 +31,27 @@ export const useDashboardLogic = (todayLectures: Timetable[], lecturePlans: Lect
 
   const syllabusSuggestion = useMemo(() => {
     const targetLecture = activeLecture || nextLecture;
-    if (!targetLecture || !lecturePlans.length) return null;
+    if (!targetLecture) return null;
     
-    // Suggest the next pending topic for the current subject
-    // We filter by subject and find the first 'Pending' lecture
+    // Check subject type to suggest either Topic or Experiment
+    // Type is optionally present on Subject details
+    const subjectType = targetLecture.subject_details?.subject_type || 'theory';
+
+    if (subjectType === 'practical') {
+      const nextExp = experiments
+        .filter(e => e.subject === targetLecture.subject && e.status === 'Pending')
+        .sort((a, b) => a.experiment_number - b.experiment_number)[0];
+      return nextExp?.title ? `Experiment: ${nextExp.title}` : "Next Lab Experiment";
+    }
+
+    // Theory Suggestion
     const nextPending = lecturePlans
       .filter(p => p.subject === targetLecture.subject && p.status === 'Pending')
       .sort((a, b) => a.lecture_number - b.lecture_number)[0];
     
     return nextPending?.topic_name || "Next Syllabus Topic";
-  }, [activeLecture, nextLecture, lecturePlans]);
+  }, [activeLecture, nextLecture, lecturePlans, experiments]);
+
 
   return {
     now,

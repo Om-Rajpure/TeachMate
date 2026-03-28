@@ -12,11 +12,13 @@ import { toast } from 'react-toastify';
 interface UploadPreviewProps {
   type: 'timetable' | 'syllabus';
   file: File;
+  subjectId?: number | null;
+  subjectType?: 'theory' | 'practical';
   onClose: () => void;
   onSave: (data: any[]) => void;
 }
 
-const UploadPreview: React.FC<UploadPreviewProps> = ({ type, file, onClose, onSave }) => {
+const UploadPreview: React.FC<UploadPreviewProps> = ({ type, file, subjectId, subjectType, onClose, onSave }) => {
   const [isParsing, setIsParsing] = useState(true);
   const [data, setData] = useState<any[]>([]);
   const [editingId, setEditingId] = useState<string | number | null>(null);
@@ -33,7 +35,7 @@ const UploadPreview: React.FC<UploadPreviewProps> = ({ type, file, onClose, onSa
           }));
           setData(entriesWithIds);
         } else {
-          const res = await syllabusService.parse(file);
+          const res = await syllabusService.parse(file, subjectType || 'theory');
           const entriesWithIds = res.data.map((entry: any, index: number) => ({
             ...entry,
             id: `new-${index}`
@@ -49,7 +51,7 @@ const UploadPreview: React.FC<UploadPreviewProps> = ({ type, file, onClose, onSa
     };
 
     parseFile();
-  }, [file, type, onClose]);
+  }, [file, type, subjectType, onClose]);
 
   const warnings = useMemo(() => {
     const conflicts: Record<string, boolean> = {};
@@ -94,17 +96,27 @@ const UploadPreview: React.FC<UploadPreviewProps> = ({ type, file, onClose, onSa
         }
         onSave(data);
       } else {
-        const res = await syllabusService.commit(data);
-        if (res.data.warnings?.length > 0) {
-          res.data.warnings.forEach((w: string) => toast.warning(w));
+        if (!subjectId) {
+          toast.error('No subject selected');
+          return;
         }
-        toast.success('Syllabus synchronized and lecture plan built!');
+        if (subjectType === 'practical') {
+          await syllabusService.commitExperiments(subjectId, data);
+          toast.success('Practical experiments synced!');
+        } else {
+          const res = await syllabusService.commit(subjectId, data);
+          if (res.data.warnings?.length > 0) {
+            res.data.warnings.forEach((w: string) => toast.warning(w));
+          }
+          toast.success('Theory syllabus synced!');
+        }
         onSave(data);
       }
     } catch (error: any) {
       toast.error('Failed to commit data');
     }
   };
+
 
   if (isParsing) {
     return (
@@ -157,10 +169,18 @@ const UploadPreview: React.FC<UploadPreviewProps> = ({ type, file, onClose, onSa
                   </>
                 ) : (
                   <>
-                    <th className="px-5 py-4 text-[10px] font-black uppercase text-text-muted tracking-widest w-24">Lec No</th>
-                    <th className="px-5 py-4 text-[10px] font-black uppercase text-text-muted tracking-widest">Chapter/Unit</th>
-                    <th className="px-5 py-4 text-[10px] font-black uppercase text-text-muted tracking-widest">Topics</th>
-                    <th className="px-5 py-4 text-[10px] font-black uppercase text-text-muted tracking-widest">CO</th>
+                    <th className="px-5 py-4 text-[10px] font-black uppercase text-text-muted tracking-widest w-24">
+                      {subjectType === 'practical' ? 'Exp No' : 'Lec No'}
+                    </th>
+                    <th className="px-5 py-4 text-[10px] font-black uppercase text-text-muted tracking-widest">
+                      {subjectType === 'practical' ? 'Experiment Title' : 'Chapter/Unit'}
+                    </th>
+                    {subjectType !== 'practical' && (
+                      <>
+                        <th className="px-5 py-4 text-[10px] font-black uppercase text-text-muted tracking-widest">Topics</th>
+                        <th className="px-5 py-4 text-[10px] font-black uppercase text-text-muted tracking-widest">CO</th>
+                      </>
+                    )}
                   </>
                 )}
                 <th className="px-5 py-4 text-right"></th>
@@ -239,21 +259,29 @@ const UploadPreview: React.FC<UploadPreviewProps> = ({ type, file, onClose, onSa
                   ) : (
                     <>
                       <td className="px-5 py-4">
-                        <span className="text-xs font-black text-text">L{item.lecture_number}</span>
-                      </td>
-                      <td className="px-5 py-4">
-                        <div className="text-[11px] font-bold text-text truncate max-w-[200px]">{item.chapter_name}</div>
-                      </td>
-                      <td className="px-5 py-4">
-                        <div className="text-sm font-medium text-text-muted line-clamp-2 max-w-[300px]">
-                          {item.topic_name}
-                        </div>
-                      </td>
-                      <td className="px-5 py-4">
-                        <span className="px-2 py-0.5 bg-emerald-50 text-emerald-600 rounded-md text-[9px] font-black uppercase">
-                          {item.co || 'N/A'}
+                        <span className="text-xs font-black text-text">
+                          {subjectType === 'practical' ? `EXP ${item.experiment_number}` : `L${item.lecture_number}`}
                         </span>
                       </td>
+                      <td className="px-5 py-4">
+                        <div className="text-[11px] font-bold text-text truncate max-w-[400px]">
+                          {subjectType === 'practical' ? item.title : item.chapter_name}
+                        </div>
+                      </td>
+                      {subjectType !== 'practical' && (
+                        <>
+                          <td className="px-5 py-4">
+                            <div className="text-sm font-medium text-text-muted line-clamp-2 max-w-[300px]">
+                              {item.topic_name}
+                            </div>
+                          </td>
+                          <td className="px-5 py-4">
+                            <span className="px-2 py-0.5 bg-emerald-50 text-emerald-600 rounded-md text-[9px] font-black uppercase">
+                              {item.co || 'N/A'}
+                            </span>
+                          </td>
+                        </>
+                      )}
                     </>
                   )}
                   <td className="px-5 py-4 text-right">

@@ -2,6 +2,16 @@ export interface Subject {
   id: number;
   name: string;
   code: string;
+  subject_type: 'theory' | 'practical';
+}
+
+export interface Experiment {
+  id: number;
+  subject: number;
+  subject_name: string;
+  experiment_number: number;
+  title: string;
+  status: 'Pending' | 'Completed';
 }
 
 export interface Teacher {
@@ -43,6 +53,7 @@ export interface Lecture {
   timetable: number;
   date: string;
   topic?: number;
+  experiment?: number;
   topic_name?: string;
   topic_taught: string;
   status: 'Completed' | 'Skipped';
@@ -148,7 +159,7 @@ export interface Notification {
   id: number;
   title: string;
   message: string;
-  type: 'Reminder' | 'Warning' | 'Info';
+  type: 'Reminder' | 'Warning' | 'Info' | 'Success';
   is_read: boolean;
   created_at: string;
 }

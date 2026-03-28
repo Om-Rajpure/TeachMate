@@ -188,6 +188,59 @@ class TimetableParser:
         return entries
 
     @staticmethod
+    def parse_practical(file_path):
+        """
+        Parses an Excel experiment sheet.
+        Expects columns: Experiment No, Experiment Name/Title.
+        """
+        df = pd.read_excel(file_path)
+        
+        # Clean column names
+        df.columns = [str(c).strip() for c in df.columns]
+        
+        # Mapping rules for Practical/Lab
+        col_map = {
+            'exp_no': ['Experiment No', 'Exp No', 'Sr No', 'No', '#'],
+            'title': ['Experiment Name', 'Experiment Title', 'Title', 'Experiment', 'Name']
+        }
+        
+        def find_col(possible_names):
+            for name in possible_names:
+                for actual in df.columns:
+                    if name.lower() in actual.lower():
+                        return actual
+            return None
+
+        actual_cols = {k: find_col(v) for k, v in col_map.items()}
+        
+        if not actual_cols['title']:
+            # Fallback if no specific title column: use the longest text column that isn't the index
+            text_cols = df.select_dtypes(include=['object']).columns
+            if len(text_cols) > 0:
+                actual_cols['title'] = text_cols[0]
+
+        entries = []
+        for _, row in df.iterrows():
+            title = str(row.get(actual_cols['title'], '')).strip()
+            if not title or title.lower() == 'nan' or len(title) < 3:
+                continue
+            
+            exp_no_raw = str(row.get(actual_cols['exp_no'], '')).strip()
+            exp_no_match = re.search(r'(\d+)', exp_no_raw)
+            if exp_no_match:
+                exp_no = int(exp_no_match.group(1))
+            else:
+                exp_no = (entries[-1]['experiment_number'] + 1) if entries else 1
+            
+            entries.append({
+                'experiment_number': exp_no,
+                'title': title
+            })
+
+        return entries
+
+    @staticmethod
     def _map_day(day_str):
         day_upper = day_str.strip().upper()
         return TimetableParser.DAYS_MAP.get(day_upper)
+

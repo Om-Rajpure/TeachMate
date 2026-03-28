@@ -2,10 +2,15 @@ from rest_framework import serializers
 from .models import (
     Subject, Teacher, Division, Batch, Timetable, Lecture, 
     Student, Attendance, Chapter, LecturePlan, MarkType, Mark,
-    Notification, ResourceFile
+    Notification, ResourceFile, Experiment
 )
 
-# ... (rest of serializers)
+class ExperimentSerializer(serializers.ModelSerializer):
+    subject_name = serializers.CharField(source='subject.name', read_only=True)
+
+    class Meta:
+        model = Experiment
+        fields = '__all__'
 
 class NotificationSerializer(serializers.ModelSerializer):
     class Meta:
@@ -97,6 +102,7 @@ class LecturePlanSerializer(serializers.ModelSerializer):
 class LectureSerializer(serializers.ModelSerializer):
     timetable_details = TimetableSerializer(source='timetable', read_only=True)
     topic_details = LecturePlanSerializer(source='topic', read_only=True)
+    experiment_details = ExperimentSerializer(source='experiment', read_only=True)
     attendance_count = serializers.SerializerMethodField()
 
     class Meta:
@@ -125,3 +131,4 @@ class MarkSerializer(serializers.ModelSerializer):
     class Meta:
         model = Mark
         fields = '__all__'
+

@@ -51,6 +51,7 @@ export const lectureService = {
   getAll: () => api.get('/lectures/'),
   getStats: () => api.get<DashboardStats>('/lectures/stats/'),
   getToday: () => api.get<(Timetable & { lecture_status: string; lecture_id: number })[]>('/lectures/today/'),
+  getSubjects: () => api.get<Subject[]>('/subjects/'),
   create: (data: any) => api.post('/lectures/', data),
   update: (id: number, data: any) => api.put(`/lectures/${id}/`, data),
   markCompleted: (timetableId: number, topicTaught: string, remarks: string = '') => 
@@ -78,14 +79,19 @@ export const attendanceService = {
 export const syllabusService = {
   getChapters: (subjectId?: number) => api.get<Chapter[]>(`/syllabus/chapters/${subjectId ? `?subject=${subjectId}` : ''}`),
   getLecturePlans: (subjectId?: number) => api.get<LecturePlan[]>(`/syllabus/lecture-plan/${subjectId ? `?subject=${subjectId}` : ''}`),
-  parse: (file: File) => {
+  getExperiments: (subjectId?: number) => api.get<any[]>(`/syllabus/experiments/${subjectId ? `?subject=${subjectId}` : ''}`),
+  parse: (file: File, type: 'theory' | 'practical' = 'theory') => {
     const formData = new FormData();
     formData.append('file', file);
+    formData.append('type', type);
     return api.post<any[]>('/syllabus/lecture-plan/parse/', formData, {
       headers: { 'Content-Type': 'multipart/form-data' }
     });
   },
-  commit: (data: any[]) => api.post('/syllabus/lecture-plan/commit/', data),
+  commit: (subject_id: number, entries: any[]) => 
+    api.post('/syllabus/lecture-plan/commit/', { subject_id, entries }),
+  commitExperiments: (subject_id: number, entries: any[]) => 
+    api.post('/syllabus/experiments/commit/', { subject_id, entries }),
 };
 
 export const markTypeService = {

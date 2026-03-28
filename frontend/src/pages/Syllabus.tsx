@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useState, useEffect, useMemo } from 'react';
+import { motion } from 'framer-motion';
 import { 
   CheckCircle2, 
   Clock, 
@@ -8,16 +8,21 @@ import {
   Lightbulb,
   Target,
   Layers,
-  Calendar
+  Calendar,
+  FlaskConical,
+  BookOpen
 } from 'lucide-react';
 import { syllabusService, subjectService } from '../services/api';
-import type { Subject, Chapter, LecturePlan } from '../types';
+import type { Subject, Chapter, LecturePlan, Experiment } from '../types';
 import { toast } from 'react-toastify';
 
+
 const Syllabus = () => {
+  const [activeTab, setActiveTab] = useState<'theory' | 'practical'>('theory');
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [chapters, setChapters] = useState<Chapter[]>([]);
   const [lecturePlans, setLecturePlans] = useState<LecturePlan[]>([]);
+  const [experiments, setExperiments] = useState<Experiment[]>([]);
   const [selectedSubject, setSelectedSubject] = useState<number | 'all'>('all');
   const [loading, setLoading] = useState(true);
 
@@ -42,12 +47,14 @@ const Syllabus = () => {
   const fetchSyllabusData = async () => {
     try {
       const subjectId = selectedSubject === 'all' ? undefined : selectedSubject;
-      const [chapRes, planRes] = await Promise.all([
+      const [chapRes, planRes, expRes] = await Promise.all([
         syllabusService.getChapters(subjectId),
-        syllabusService.getLecturePlans(subjectId)
+        syllabusService.getLecturePlans(subjectId),
+        syllabusService.getExperiments(subjectId)
       ]);
       setChapters(chapRes.data);
       setLecturePlans(planRes.data);
+      setExperiments(expRes.data);
     } catch (err) {
       console.error('Error fetching syllabus data:', err);
       toast.error('Failed to load syllabus details');
@@ -58,10 +65,19 @@ const Syllabus = () => {
     if (!loading) {
       fetchSyllabusData();
     }
-  }, [selectedSubject]);
+  }, [selectedSubject, activeTab]);
+
+  // Reset subject filter when tab changes
+  useEffect(() => {
+    setSelectedSubject('all');
+  }, [activeTab]);
+
+  const filteredSubjects = subjects.filter(s => s.subject_type === activeTab);
 
   // Group lecture plans by chapter in strict teaching order
   const groupedData = useMemo(() => {
+    if (activeTab === 'practical') return [];
+
     // 1. Sort all lecture plans by lecture_number first (Primary Teaching Order)
     const sortedPlans = [...lecturePlans].sort((a, b) => a.lecture_number - b.lecture_number);
     
@@ -80,26 +96,37 @@ const Syllabus = () => {
     });
 
     // 4. Sort Chapters by the lecture_number of their FIRST plan
-    // This ensures Chapter 1 (L1-L5) always comes before Chapter 2 (L6-L10)
     return Object.values(groups)
-      .filter(g => g.plans.length > 0) // Only show chapters with lectures
+      .filter(g => g.plans.length > 0)
       .sort((a, b) => {
         const aFirst = a.plans[0].lecture_number;
         const bFirst = b.plans[0].lecture_number;
         return aFirst - bFirst;
       });
-  }, [chapters, lecturePlans]);
+  }, [chapters, lecturePlans, activeTab]);
 
   const stats = useMemo(() => {
-    if (lecturePlans.length === 0) return { avg: 0, total: 0, completed: 0 };
-    const total = lecturePlans.length;
-    const completedCount = lecturePlans.filter(p => p.status === 'Completed').length;
+    const dataItems = activeTab === 'theory' ? lecturePlans : experiments;
+    if (dataItems.length === 0) return { avg: 0, total: 0, completed: 0 };
+    const total = dataItems.length;
+    const completedCount = dataItems.filter(p => p.status === 'Completed').length;
     const avg = (completedCount / total) * 100;
     return { avg: Math.round(avg), total, completed: completedCount };
-  }, [lecturePlans]);
+  }, [lecturePlans, experiments, activeTab]);
 
   // "AI" Suggestions
   const suggestion = useMemo(() => {
+    if (activeTab === 'practical') {
+       const pending = experiments.filter(e => e.status === 'Pending').sort((a, b) => a.experiment_number - b.experiment_number);
+       if (pending.length > 0) {
+         return {
+           icon: <FlaskConical className="text-purple-500" size={20} />,
+           text: `Next Lab: "${pending[0].title}" (Exp ${pending[0].experiment_number}).`
+         };
+       }
+       return { icon: <Lightbulb size={20} />, text: "Practical progress tracked via experiment completion." };
+    }
+
     const pending = lecturePlans.filter(p => p.status === 'Pending').sort((a, b) => a.lecture_number - b.lecture_number);
     if (pending.length > 0) {
       return {
@@ -117,7 +144,8 @@ const Syllabus = () => {
       icon: <Lightbulb className="text-blue-500" size={20} />,
       text: "Upload a syllabus file to get automated lecture planning and topic suggestions."
     };
-  }, [lecturePlans, stats]);
+  }, [lecturePlans, experiments, stats, activeTab]);
+
 
   if (loading) {
     return (
@@ -129,45 +157,71 @@ const Syllabus = () => {
 
   return (
     <div className="space-y-8 pb-20">
+      {/* Tab Switcher */}
+      <div className="flex items-center justify-between">
+        <div className="flex bg-white p-1.5 rounded-[1.5rem] border border-gray-100 shadow-sm">
+          <button 
+            onClick={() => setActiveTab('theory')}
+            className={`flex items-center gap-2 px-8 py-3 rounded-2xl font-black text-sm uppercase tracking-tight transition-all ${
+              activeTab === 'theory' ? 'bg-primary text-white shadow-lg shadow-primary/20' : 'text-text-muted hover:bg-gray-50'
+            }`}
+          >
+            <BookOpen size={18} /> Theory
+          </button>
+          <button 
+            onClick={() => setActiveTab('practical')}
+            className={`flex items-center gap-2 px-8 py-3 rounded-2xl font-black text-sm uppercase tracking-tight transition-all ${
+              activeTab === 'practical' ? 'bg-purple-600 text-white shadow-lg shadow-purple-600/20' : 'text-text-muted hover:bg-gray-50'
+            }`}
+          >
+            <FlaskConical size={18} /> Practical
+          </button>
+        </div>
+      </div>
+
       {/* Header Stats */}
       <section className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm relative overflow-hidden group">
           <div className="absolute -right-4 -bottom-4 text-primary/5 group-hover:scale-110 transition-transform">
             <Target size={120} />
           </div>
-          <p className="text-sm font-bold text-text-muted mb-1 uppercase tracking-wider">Overall Syllabus Progress</p>
+          <p className="text-sm font-bold text-text-muted mb-1 uppercase tracking-wider">
+            {activeTab === 'theory' ? 'Theory' : 'Practical'} Progress
+          </p>
           <div className="flex items-end gap-3">
             <h3 className="text-4xl font-black text-text">{stats.avg}%</h3>
             <span className="text-xs text-green-500 font-bold mb-2">
-              {stats.completed} / {stats.total} Lecs
+              {stats.completed} / {stats.total} {activeTab === 'theory' ? 'Lecs' : 'Exps'}
             </span>
           </div>
           <div className="mt-4 h-2 w-full bg-gray-100 rounded-full overflow-hidden">
             <motion.div 
               initial={{ width: 0 }}
               animate={{ width: `${stats.avg}%` }}
-              className="h-full bg-primary"
+              className={`h-full ${activeTab === 'theory' ? 'bg-primary' : 'bg-purple-600'}`}
             />
           </div>
         </div>
 
         <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
-          <p className="text-sm font-bold text-text-muted mb-1 uppercase tracking-wider">Syllabus Structure</p>
+          <p className="text-sm font-bold text-text-muted mb-1 uppercase tracking-wider">Structure</p>
           <div className="flex items-center gap-4 mt-2">
-            <div className="w-12 h-12 rounded-xl bg-orange-50 flex items-center justify-center text-orange-600">
-              <Layers size={24} />
+            <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${activeTab === 'theory' ? 'bg-orange-50 text-orange-600' : 'bg-purple-50 text-purple-600'}`}>
+              {activeTab === 'theory' ? <Layers size={24} /> : <FlaskConical size={24} />}
             </div>
             <div>
-              <h3 className="text-2xl font-bold text-text">{chapters.length} Chapters</h3>
+              <h3 className="text-2xl font-bold text-text">
+                {activeTab === 'theory' ? `${chapters.length} Chapters` : `${experiments.length} Experiments`}
+              </h3>
               <p className="text-xs text-text-muted">Distributed across subjects</p>
             </div>
           </div>
         </div>
 
-        <div className="bg-primary/5 p-6 rounded-2xl border border-primary/10 flex items-start gap-4">
+        <div className={`${activeTab === 'theory' ? 'bg-primary/5 border-primary/10' : 'bg-purple-50 border-purple-100'} p-6 rounded-2xl border flex items-start gap-4`}>
           <div className="mt-1">{suggestion.icon}</div>
           <div>
-            <p className="text-xs font-bold text-primary uppercase tracking-wider mb-1">Smart Planner</p>
+            <p className={`text-xs font-bold uppercase tracking-wider mb-1 ${activeTab === 'theory' ? 'text-primary' : 'text-purple-600'}`}>Smart Planner</p>
             <p className="text-sm text-text font-medium leading-relaxed">
               {suggestion.text}
             </p>
@@ -180,11 +234,11 @@ const Syllabus = () => {
         <div className="flex bg-white p-1 rounded-xl border border-gray-100 overflow-x-auto max-w-full">
           <button 
             onClick={() => setSelectedSubject('all')}
-            className={`px-4 py-2 rounded-lg text-sm font-bold transition-all whitespace-nowrap ${selectedSubject === 'all' ? "bg-primary text-white" : "hover:bg-gray-50 text-text-muted"}`}
+            className={`px-4 py-2 rounded-lg text-sm font-bold transition-all whitespace-nowrap ${selectedSubject === 'all' ? "bg-gray-900 text-white" : "hover:bg-gray-50 text-text-muted"}`}
           >
-            All Subjects
+            All {activeTab === 'theory' ? 'Subjects' : 'Labs'}
           </button>
-          {subjects.map(s => (
+          {filteredSubjects.map(s => (
             <button 
               key={s.id}
               onClick={() => setSelectedSubject(s.id)}
@@ -196,17 +250,17 @@ const Syllabus = () => {
         </div>
         <div className="flex gap-2 w-full md:w-auto">
             <button 
-            onClick={() => toast.info('Please use Dashboard to upload Excel syllabus')}
+            onClick={() => toast.info(`Please use Dashboard to upload ${activeTab} syllabus`)}
             className="flex-1 md:w-auto px-6 py-3 bg-white text-text border border-gray-200 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-gray-50 transition-all"
             >
-            <Calendar size={18} /> Plan Auto
+            <Calendar size={18} /> Manage
             </button>
         </div>
       </div>
 
       {/* Hierarchical Progress List */}
       <div className="space-y-10">
-        {groupedData.map((group, groupIdx) => {
+        {activeTab === 'theory' ? groupedData.map((group, groupIdx) => {
             const chapterProgress = group.plans.length > 0 
                 ? (group.plans.filter(p => p.status === 'Completed').length / group.plans.length) * 100 
                 : 0;
@@ -261,17 +315,51 @@ const Syllabus = () => {
                     </div>
                 </div>
             );
-        })}
+        }) : (
+          <div className="grid gap-4">
+            {experiments.map((exp, idx) => (
+              <motion.div 
+                key={exp.id}
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: idx * 0.05 }}
+                className="bg-white p-6 rounded-[2rem] border border-gray-100 flex items-center justify-between hover:border-purple-200 transition-all shadow-sm"
+              >
+                <div className="flex items-center gap-6">
+                  <div className="w-14 h-14 rounded-2xl bg-purple-50 text-purple-600 flex items-center justify-center font-black text-lg">
+                    {exp.experiment_number}
+                  </div>
+                  <div>
+                    <h4 className="font-black text-text text-lg">{exp.title}</h4>
+                    <p className="text-xs text-text-muted font-bold uppercase tracking-widest mt-0.5">
+                      Subject ID: {exp.subject} • Practical Experiment
+                    </p>
+                  </div>
+                </div>
+                {exp.status === 'Completed' ? (
+                  <div className="px-6 py-2 bg-emerald-50 text-emerald-600 rounded-xl font-black text-[10px] uppercase flex items-center gap-2 border border-emerald-100">
+                    <CheckCircle2 size={16} /> Experiment Done
+                  </div>
+                ) : (
+                  <div className="px-6 py-2 bg-gray-50 text-text-muted rounded-xl font-black text-[10px] uppercase border border-gray-100">
+                    Pending
+                  </div>
+                )}
+              </motion.div>
+            ))}
+          </div>
+        )}
 
-        {groupedData.length === 0 && (
+        {((activeTab === 'theory' && groupedData.length === 0) || (activeTab === 'practical' && experiments.length === 0)) && (
           <div className="py-20 text-center bg-gray-50 rounded-[2.5rem] border-2 border-dashed border-gray-200">
             <AlertCircle className="mx-auto text-gray-400 mb-2" size={32} />
-            <p className="text-gray-500 font-bold tracking-tight">No syllabus data found.</p>
-            <p className="text-xs text-text-muted mt-1 uppercase font-black">Please upload a syllabus Excel file from the dashboard.</p>
+            <p className="text-gray-500 font-bold tracking-tight">No {activeTab} syllabus data found.</p>
+            <p className="text-xs text-text-muted mt-1 uppercase font-black">Please upload a {activeTab} syllabus Excel file from the dashboard.</p>
           </div>
         )}
       </div>
     </div>
+
   );
 };
 
