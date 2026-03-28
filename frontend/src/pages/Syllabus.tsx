@@ -60,21 +60,34 @@ const Syllabus = () => {
     }
   }, [selectedSubject]);
 
-  // Group lecture plans by chapter
+  // Group lecture plans by chapter in strict teaching order
   const groupedData = useMemo(() => {
+    // 1. Sort all lecture plans by lecture_number first (Primary Teaching Order)
+    const sortedPlans = [...lecturePlans].sort((a, b) => a.lecture_number - b.lecture_number);
+    
     const groups: Record<number, { chapter: Chapter; plans: LecturePlan[] }> = {};
     
+    // 2. Initialize groups with existing chapters
     chapters.forEach(chap => {
       groups[chap.id] = { chapter: chap, plans: [] };
     });
 
-    lecturePlans.forEach(plan => {
+    // 3. Distribute sorted plans into their chapters
+    sortedPlans.forEach(plan => {
       if (groups[plan.chapter]) {
         groups[plan.chapter].plans.push(plan);
       }
     });
 
-    return Object.values(groups).sort((a, b) => a.chapter.name.localeCompare(b.chapter.name));
+    // 4. Sort Chapters by the lecture_number of their FIRST plan
+    // This ensures Chapter 1 (L1-L5) always comes before Chapter 2 (L6-L10)
+    return Object.values(groups)
+      .filter(g => g.plans.length > 0) // Only show chapters with lectures
+      .sort((a, b) => {
+        const aFirst = a.plans[0].lecture_number;
+        const bFirst = b.plans[0].lecture_number;
+        return aFirst - bFirst;
+      });
   }, [chapters, lecturePlans]);
 
   const stats = useMemo(() => {

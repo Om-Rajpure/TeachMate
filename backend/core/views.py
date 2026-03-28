@@ -277,8 +277,15 @@ class ChapterViewSet(viewsets.ModelViewSet):
     serializer_class = ChapterSerializer
 
 class LecturePlanViewSet(viewsets.ModelViewSet):
-    queryset = LecturePlan.objects.all()
+    queryset = LecturePlan.objects.all().order_by('lecture_number')
     serializer_class = LecturePlanSerializer
+
+    def get_queryset(self):
+        queryset = LecturePlan.objects.all().order_by('lecture_number')
+        subject = self.request.query_params.get('subject')
+        if subject:
+            queryset = queryset.filter(subject_id=subject)
+        return queryset
 
     @action(detail=False, methods=['post'])
     def parse(self, request):
