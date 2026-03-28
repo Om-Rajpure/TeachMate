@@ -1,8 +1,30 @@
 from rest_framework import serializers
 from .models import (
     Subject, Teacher, Division, Batch, Timetable, Lecture, 
-    Student, Attendance, SyllabusPlan, SyllabusProgress
+    Student, Attendance, SyllabusPlan, SyllabusProgress, MarkType, Mark,
+    Notification, ResourceFile
 )
+
+# ... (rest of serializers)
+
+class NotificationSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Notification
+        fields = '__all__'
+
+class ResourceFileSerializer(serializers.ModelSerializer):
+    subject_name = serializers.CharField(source='subject.name', read_only=True)
+    file_url = serializers.SerializerMethodField()
+
+    class Meta:
+        model = ResourceFile
+        fields = ['id', 'title', 'file', 'file_url', 'subject', 'subject_name', 'uploaded_at']
+
+    def get_file_url(self, obj):
+        request = self.context.get('request')
+        if obj.file and request:
+            return request.build_absolute_uri(obj.file.url)
+        return None
 
 class SubjectSerializer(serializers.ModelSerializer):
     class Meta:
@@ -92,3 +114,20 @@ class LectureSerializer(serializers.ModelSerializer):
             'present': obj.attendance.filter(status='Present').count(),
             'absent': obj.attendance.filter(status='Absent').count()
         }
+
+class MarkTypeSerializer(serializers.ModelSerializer):
+    subject_name = serializers.CharField(source='subject.name', read_only=True)
+
+    class Meta:
+        model = MarkType
+        fields = '__all__'
+
+class MarkSerializer(serializers.ModelSerializer):
+    student_name = serializers.CharField(source='student.name', read_only=True)
+    roll_number = serializers.CharField(source='student.roll_number', read_only=True)
+    mark_type_name = serializers.CharField(source='mark_type.name', read_only=True)
+    max_marks = serializers.IntegerField(source='mark_type.max_marks', read_only=True)
+
+    class Meta:
+        model = Mark
+        fields = '__all__'

@@ -93,3 +93,69 @@ export interface DashboardStats {
   attendance_avg: number;
   syllabus_avg: number;
 }
+
+export interface MarkType {
+  id: number;
+  name: string;
+  max_marks: number;
+  subject: number;
+  subject_name: string;
+}
+
+export interface Mark {
+  id: number;
+  student: number;
+  student_name: string;
+  roll_number: string;
+  subject: number;
+  mark_type: number;
+  mark_type_name: string;
+  marks_obtained: number;
+  max_marks: number;
+}
+
+export interface StudentPerformance {
+  id: number;
+  name: string;
+  roll_number: string;
+  total_marks: number;
+  max_marks: number;
+  percentage: number;
+  grade: string;
+  rank: number;
+  subject_breakdown: {
+    subject: string;
+    percentage: number;
+  }[];
+}
+
+export interface ClassAnalytics {
+  class_average: number;
+  total_students: number;
+  toppers: StudentPerformance[];
+  weak_students: StudentPerformance[];
+  subject_performance: {
+    subject: string;
+    avg_percentage: number;
+  }[];
+  student_performances: StudentPerformance[];
+}
+
+export interface Notification {
+  id: number;
+  title: string;
+  message: string;
+  type: 'Reminder' | 'Warning' | 'Info';
+  is_read: boolean;
+  created_at: string;
+}
+
+export interface ResourceFile {
+  id: number;
+  title: string;
+  file: string;
+  file_url: string;
+  subject: number;
+  subject_name: string;
+  uploaded_at: string;
+}

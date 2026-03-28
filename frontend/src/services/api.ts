@@ -1,11 +1,24 @@
 import axios from 'axios';
-import type { Subject, Teacher, Division, Batch, Timetable, Student, SyllabusPlan, SyllabusProgress, Attendance, DashboardStats } from '../types';
+import type { 
+  Subject, Teacher, Division, Batch, Timetable, Student, 
+  SyllabusPlan, SyllabusProgress, Attendance, DashboardStats,
+  MarkType, Mark, ClassAnalytics, Notification, ResourceFile
+} from '../types';
 
-const API_BASE_URL = 'http://localhost:8000/api';
+const API_BASE_URL = 'http://localhost:8001/api';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
+  withCredentials: true,
 });
+
+// Auth service
+export const authService = {
+  login: (username: string, password: string) =>
+    api.post('/auth/login/', { username, password }),
+  logout: () => api.post('/auth/logout/'),
+  me: () => api.get('/auth/me/'),
+};
 
 export const subjectService = {
   getAll: () => api.get<Subject[]>('/subjects/'),
@@ -51,9 +64,38 @@ export const attendanceService = {
 };
 
 export const syllabusService = {
-  getPlans: (subjectId?: number) => api.get<SyllabusPlan[]>(`/syllabus-plans/${subjectId ? `?subject=${subjectId}` : ''}`),
-  createPlan: (data: Partial<SyllabusPlan>) => api.post<SyllabusPlan>('/syllabus-plans/', data),
-  getProgress: (subjectId?: number) => api.get<SyllabusProgress[]>(`/syllabus-progress/${subjectId ? `?subject=${subjectId}` : ''}`),
+  getPlans: (subjectId?: number) => api.get<SyllabusPlan[]>(`/syllabus/plan/${subjectId ? `?subject=${subjectId}` : ''}`),
+  createPlan: (data: Partial<SyllabusPlan>) => api.post<SyllabusPlan>('/syllabus/plan/', data),
+  getProgress: (subjectId?: number) => api.get<SyllabusProgress[]>(`/syllabus/progress/${subjectId ? `?subject=${subjectId}` : ''}`),
+};
+
+export const markTypeService = {
+  getAll: (subjectId?: number) => api.get<MarkType[]>(`/mark-types/${subjectId ? `?subject=${subjectId}` : ''}`),
+  create: (data: Partial<MarkType>) => api.post<MarkType>('/mark-types/', data),
+};
+
+export const markService = {
+  getAll: (params?: any) => api.get<Mark[]>('/marks/', { params }),
+  bulkUpdate: (data: { subject_id: number; mark_type_id: number; marks: { student_id: number; marks_obtained: number }[] }) => 
+    api.post('/marks/bulk/', data),
+};
+
+export const analyticsService = {
+  getClassAnalytics: () => api.get<ClassAnalytics>('/analytics/class_analytics/'),
+};
+
+export const notificationService = {
+  getAll: () => api.get<Notification[]>('/notifications/'),
+  markAsRead: (id: number) => api.post(`/notifications/${id}/read/`),
+  markAllAsRead: () => api.post('/notifications/read-all/'),
+};
+
+export const resourceFileService = {
+  getAll: (subjectId?: number) => api.get<ResourceFile[]>('/files/', { params: { subject: subjectId } }),
+  upload: (formData: FormData) => api.post<ResourceFile>('/files/', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  }),
+  delete: (id: number) => api.delete(`/files/${id}/`),
 };
 
 export default api;
