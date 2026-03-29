@@ -19,6 +19,7 @@ const TimetableCard: React.FC<TimetableCardProps> = ({ onUploadClick, isCompact 
       setExists(res.data.exists);
     } catch (err) {
       console.error('Error checking timetable existence:', err);
+      setExists(false); // Fallback to upload state on error for safety
     } finally {
       setLoading(false);
     }

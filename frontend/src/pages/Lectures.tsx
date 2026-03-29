@@ -48,7 +48,7 @@ const Lectures = () => {
 
   const fetchSyllabus = async () => {
     try {
-      const res = await syllabusService.getPlans();
+      const res = await syllabusService.getLecturePlans();
       setSyllabusPlans(res.data);
     } catch (error) {
       console.error('Failed to fetch syllabus plans:', error);
