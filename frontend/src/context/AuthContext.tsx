@@ -51,7 +51,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const dummyUser: User = {
       id: 1,
       username: username.split('@')[0] || 'teacher',
-      email: username.includes('@') ? username : `${username}@techmate.ai`,
+      email: username.includes('@') ? username : `${username}@teachmate.ai`,
       first_name: 'Smart',
       last_name: 'Teacher',
     };

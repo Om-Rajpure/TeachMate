@@ -8,10 +8,16 @@ import {
   Lightbulb,
   Target,
   Layers,
-  Calendar,
   FlaskConical,
-  BookOpen
+  BookOpen,
+  Edit2,
+  Trash2,
+  X,
+  Save,
+  Plus,
+  RefreshCcw
 } from 'lucide-react';
+import { AnimatePresence } from 'framer-motion';
 import { syllabusService, subjectService } from '../services/api';
 import type { Subject, Chapter, LecturePlan, Experiment } from '../types';
 import { toast } from 'react-toastify';
@@ -25,6 +31,13 @@ const Syllabus = () => {
   const [experiments, setExperiments] = useState<Experiment[]>([]);
   const [selectedSubject, setSelectedSubject] = useState<number | 'all'>('all');
   const [loading, setLoading] = useState(true);
+
+  // Management UI States
+  const [showSubjectEditModal, setShowSubjectEditModal] = useState<Subject | null>(null);
+  const [showManagePanel, setShowManagePanel] = useState(false);
+  const [editingItem, setEditingItem] = useState<{ id: number; type: 'lecture' | 'experiment'; value: string } | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [newItemName, setNewItemName] = useState('');
 
   useEffect(() => {
     fetchInitialData();
@@ -72,7 +85,127 @@ const Syllabus = () => {
     setSelectedSubject('all');
   }, [activeTab]);
 
-  const filteredSubjects = subjects.filter(s => s.subject_type === activeTab);
+  const handleEditSubject = async (e: React.MouseEvent, subject: Subject) => {
+    e.stopPropagation();
+    setShowSubjectEditModal(subject);
+  };
+
+  const handleUpdateSubject = async (updatedData: Partial<Subject>) => {
+    if (!showSubjectEditModal) return;
+    setIsSubmitting(true);
+    try {
+      await subjectService.update(showSubjectEditModal.id, updatedData);
+      toast.success('Subject updated');
+      setShowSubjectEditModal(null);
+      fetchInitialData();
+    } catch (err) {
+      toast.error('Failed to update subject');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleDeleteSubject = async (e: React.MouseEvent, id: number) => {
+    e.stopPropagation();
+    if (!confirm('Delete subject and all its data? This includes syllabus, lectures, and experiments.')) return;
+    try {
+      await subjectService.delete(id);
+      toast.success('Subject deleted');
+      if (selectedSubject === id) setSelectedSubject('all');
+      fetchInitialData();
+    } catch (err) {
+      toast.error('Failed to delete subject');
+    }
+  };
+
+  const handleResetSyllabus = async () => {
+    if (selectedSubject === 'all') return;
+    if (!confirm('Are you sure you want to reset the syllabus? This will delete all topics/experiments for this subject.')) return;
+    
+    setIsSubmitting(true);
+    try {
+      if (activeTab === 'theory') {
+        await syllabusService.resetSyllabus(selectedSubject);
+      } else {
+        await syllabusService.resetExperiments(selectedSubject);
+      }
+      toast.success('Syllabus reset successfully');
+      fetchSyllabusData();
+    } catch (err) {
+      toast.error('Failed to reset syllabus');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleUpdateItem = async (id: number, type: 'lecture' | 'experiment', value: string) => {
+    try {
+      if (type === 'lecture') {
+        await syllabusService.updateLecture(id, { topic_name: value });
+      } else {
+        await syllabusService.updateExperiment(id, { title: value });
+      }
+      toast.success('Updated successfully');
+      setEditingItem(null);
+      fetchSyllabusData();
+    } catch (err) {
+      toast.error('Update failed');
+    }
+  };
+
+  const handleDeleteItem = async (id: number, type: 'lecture' | 'experiment') => {
+    if (!confirm('Delete this item?')) return;
+    try {
+      if (type === 'lecture') {
+        await syllabusService.deleteLecture(id);
+      } else {
+        await syllabusService.deleteExperiment(id);
+      }
+      toast.success('Deleted');
+      fetchSyllabusData();
+    } catch (err) {
+      toast.error('Delete failed');
+    }
+  };
+
+  const handleAddItem = async () => {
+    if (!newItemName || selectedSubject === 'all') return;
+    setIsSubmitting(true);
+    try {
+      if (activeTab === 'theory') {
+        // Find last lecture number
+        const nextNum = lecturePlans.length > 0 ? Math.max(...lecturePlans.map(p => p.lecture_number)) + 1 : 1;
+        // Find first chapter or create a default one
+        const chapterId = chapters.length > 0 ? chapters[0].id : null;
+        if (!chapterId) {
+           toast.error('Please upload a syllabus first to establish chapters');
+           return;
+        }
+        await syllabusService.createLecture({
+          subject: selectedSubject,
+          chapter: chapterId,
+          lecture_number: nextNum,
+          topic_name: newItemName
+        });
+      } else {
+        const nextNum = experiments.length > 0 ? Math.max(...experiments.map(p => p.experiment_number)) + 1 : 1;
+        await syllabusService.createExperiment({
+          subject: selectedSubject,
+          experiment_number: nextNum,
+          title: newItemName
+        });
+      }
+      setNewItemName('');
+      toast.success('Added successfully');
+      fetchSyllabusData();
+    } catch (err) {
+      toast.error('Failed to add item');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const themeBg = activeTab === 'theory' ? 'bg-primary' : 'bg-purple-600';
 
   // Group lecture plans by chapter in strict teaching order
   const groupedData = useMemo(() => {
@@ -229,31 +362,100 @@ const Syllabus = () => {
         </div>
       </section>
 
-      {/* Toolbar */}
-      <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
-        <div className="flex bg-white p-1 rounded-xl border border-gray-100 overflow-x-auto max-w-full">
-          <button 
-            onClick={() => setSelectedSubject('all')}
-            className={`px-4 py-2 rounded-lg text-sm font-bold transition-all whitespace-nowrap ${selectedSubject === 'all' ? "bg-gray-900 text-white" : "hover:bg-gray-50 text-text-muted"}`}
-          >
-            All {activeTab === 'theory' ? 'Subjects' : 'Labs'}
-          </button>
-          {filteredSubjects.map(s => (
+      {/* Toolbar - UPGRADED SUBJECT FILTER */}
+      <div className="flex flex-col lg:flex-row gap-6 items-start justify-between">
+        <div className="w-full lg:max-w-3xl space-y-4">
+          <div className="flex items-center justify-between px-1">
+            <h4 className="text-xs font-black text-text-muted uppercase tracking-[0.2em]">Subject Management</h4>
+            <div className="flex gap-2 text-[10px] font-bold">
+              <span className="flex items-center gap-1 text-emerald-600"><div className="w-1.5 h-1.5 rounded-full bg-emerald-500" /> Theory</span>
+              <span className="flex items-center gap-1 text-purple-600"><div className="w-1.5 h-1.5 rounded-full bg-purple-500" /> Practical</span>
+            </div>
+          </div>
+          
+          <div className="flex flex-wrap gap-2">
             <button 
-              key={s.id}
-              onClick={() => setSelectedSubject(s.id)}
-              className={`px-4 py-2 rounded-lg text-sm font-bold transition-all whitespace-nowrap ${selectedSubject === s.id ? "bg-primary text-white" : "hover:bg-gray-50 text-text-muted"}`}
+              onClick={() => setSelectedSubject('all')}
+              className={`px-5 py-2.5 rounded-xl text-sm font-black transition-all border ${
+                selectedSubject === 'all' 
+                ? "bg-gray-900 text-white border-gray-900 shadow-lg shadow-gray-900/10" 
+                : "bg-white text-text-muted border-gray-100 hover:border-gray-200"
+              }`}
             >
-              {s.name}
+              All Overview
             </button>
-          ))}
+            
+            {/* Theory Subjects Group */}
+            {subjects.filter(s => s.subject_type === 'theory').map(s => (
+              <div key={s.id} className="group relative flex items-center">
+                <button 
+                  onClick={() => { setActiveTab('theory'); setSelectedSubject(s.id); }}
+                  className={`pl-5 pr-10 py-2.5 rounded-xl text-sm font-bold transition-all border flex items-center gap-2 ${
+                    selectedSubject === s.id && activeTab === 'theory'
+                    ? "bg-primary text-white border-primary shadow-lg shadow-primary/20" 
+                    : "bg-white text-text-muted border-gray-100 hover:border-primary/30"
+                  }`}
+                >
+                  <BookOpen size={14} className={selectedSubject === s.id ? "text-white" : "text-primary/60"} />
+                  {s.name}
+                </button>
+                <div className={`absolute right-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity ${selectedSubject === s.id ? 'opacity-100' : ''}`}>
+                  <button 
+                    onClick={(e) => handleEditSubject(e, s)}
+                    className={`p-1 rounded-md hover:bg-white/20 transition-colors ${selectedSubject === s.id ? 'text-white' : 'text-gray-400 hover:text-primary'}`}
+                  >
+                    <Edit2 size={12} />
+                  </button>
+                  <button 
+                    onClick={(e) => handleDeleteSubject(e, s.id)}
+                    className={`p-1 rounded-md hover:bg-white/20 transition-colors ${selectedSubject === s.id ? 'text-white' : 'text-gray-400 hover:text-rose-500'}`}
+                  >
+                    <Trash2 size={12} />
+                  </button>
+                </div>
+              </div>
+            ))}
+
+            {/* Practical Subjects Group */}
+            {subjects.filter(s => s.subject_type === 'practical').map(s => (
+              <div key={s.id} className="group relative flex items-center">
+                <button 
+                  onClick={() => { setActiveTab('practical'); setSelectedSubject(s.id); }}
+                  className={`pl-5 pr-10 py-2.5 rounded-xl text-sm font-bold transition-all border flex items-center gap-2 ${
+                    selectedSubject === s.id && activeTab === 'practical'
+                    ? "bg-purple-600 text-white border-purple-600 shadow-lg shadow-purple-600/20" 
+                    : "bg-white text-text-muted border-gray-100 hover:border-purple-300"
+                  }`}
+                >
+                  <FlaskConical size={14} className={selectedSubject === s.id ? "text-white" : "text-purple-400"} />
+                  {s.name}
+                </button>
+                <div className={`absolute right-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity ${selectedSubject === s.id ? 'opacity-100' : ''}`}>
+                  <button 
+                    onClick={(e) => handleEditSubject(e, s)}
+                    className={`p-1 rounded-md hover:bg-white/20 transition-colors ${selectedSubject === s.id ? 'text-white' : 'text-gray-400 hover:text-purple-600'}`}
+                  >
+                    <Edit2 size={12} />
+                  </button>
+                  <button 
+                    onClick={(e) => handleDeleteSubject(e, s.id)}
+                    className={`p-1 rounded-md hover:bg-white/20 transition-colors ${selectedSubject === s.id ? 'text-white' : 'text-gray-400 hover:text-rose-500'}`}
+                  >
+                    <Trash2 size={12} />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
-        <div className="flex gap-2 w-full md:w-auto">
+
+        <div className="flex gap-2 w-full lg:w-auto self-end">
             <button 
-            onClick={() => toast.info(`Please use Dashboard to upload ${activeTab} syllabus`)}
-            className="flex-1 md:w-auto px-6 py-3 bg-white text-text border border-gray-200 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-gray-50 transition-all"
+              disabled={selectedSubject === 'all'}
+              onClick={() => setShowManagePanel(true)}
+              className={`flex-1 lg:w-auto px-8 py-4 ${themeBg} text-white rounded-[1.5rem] font-black uppercase text-xs tracking-widest flex items-center justify-center gap-3 hover:opacity-90 transition-all shadow-xl shadow-gray-100 disabled:opacity-30 disabled:grayscale`}
             >
-            <Calendar size={18} /> Manage
+              <Layers size={18} /> Manage Syllabus
             </button>
         </div>
       </div>
@@ -358,6 +560,194 @@ const Syllabus = () => {
           </div>
         )}
       </div>
+
+      {/* SUBJECT EDIT MODAL */}
+      <AnimatePresence>
+        {showSubjectEditModal && (
+          <div className="fixed inset-0 z-[110] flex items-center justify-center px-6">
+            <motion.div 
+               initial={{ opacity: 0 }} 
+               animate={{ opacity: 1 }} 
+               exit={{ opacity: 0 }}
+               onClick={() => setShowSubjectEditModal(null)}
+               className="absolute inset-0 bg-text/40 backdrop-blur-sm"
+            />
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="relative w-full max-w-md bg-white rounded-[2rem] p-8 shadow-2xl"
+            >
+               <h3 className="text-xl font-black text-text mb-6">Edit Subject</h3>
+               <div className="space-y-4">
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-text-muted uppercase ml-1">Subject Name</label>
+                    <input 
+                      type="text" 
+                      value={showSubjectEditModal.name}
+                      onChange={(e) => setShowSubjectEditModal({...showSubjectEditModal, name: e.target.value})}
+                      className="w-full px-4 py-3 rounded-xl border border-gray-100 focus:ring-2 focus:ring-primary/20 outline-none font-bold"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-text-muted uppercase ml-1">Subject Code</label>
+                    <input 
+                      type="text" 
+                      value={showSubjectEditModal.code}
+                      onChange={(e) => setShowSubjectEditModal({...showSubjectEditModal, code: e.target.value})}
+                      className="w-full px-4 py-3 rounded-xl border border-gray-100 focus:ring-2 focus:ring-primary/20 outline-none font-bold"
+                    />
+                  </div>
+                  <div className="flex gap-3 pt-4">
+                    <button 
+                      onClick={() => setShowSubjectEditModal(null)}
+                      className="flex-1 py-3 bg-gray-50 text-text-muted rounded-xl font-bold hover:bg-gray-100 transition-all"
+                    >
+                      Cancel
+                    </button>
+                    <button 
+                      onClick={() => handleUpdateSubject({ name: showSubjectEditModal.name, code: showSubjectEditModal.code })}
+                      disabled={isSubmitting}
+                      className="flex-1 py-3 bg-primary text-white rounded-xl font-bold hover:bg-primary-dark transition-all shadow-lg shadow-primary/20"
+                    >
+                      {isSubmitting ? 'Saving...' : 'Save Changes'}
+                    </button>
+                  </div>
+               </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* MANAGE SYLLABUS PANEL (Overlay) */}
+      <AnimatePresence>
+        {showManagePanel && (
+          <div className="fixed inset-0 z-[120] overflow-hidden">
+            <motion.div 
+              initial={{ opacity: 0 }} 
+              animate={{ opacity: 1 }} 
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-white"
+            />
+            <motion.div 
+              initial={{ x: '100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '100%' }}
+              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+              className="absolute inset-0 bg-white flex flex-col"
+            >
+              {/* Panel Header */}
+              <div className="p-6 md:p-10 border-b border-gray-100 flex items-center justify-between bg-white sticky top-0 z-10">
+                <div>
+                  <h2 className="text-2xl md:text-3xl font-black text-text">Manage {activeTab === 'theory' ? 'Syllabus' : 'Experiments'}</h2>
+                  <p className="text-text-muted font-bold text-sm">
+                    {subjects.find(s => s.id === selectedSubject)?.name} • {activeTab === 'theory' ? 'Academic Planning' : 'Lab Curriculum'}
+                  </p>
+                </div>
+                <button 
+                  onClick={() => setShowManagePanel(false)}
+                  className="p-4 bg-gray-50 text-text-muted rounded-2xl hover:bg-gray-100 transition-all"
+                >
+                  <X size={24} />
+                </button>
+              </div>
+
+              {/* Panel Content */}
+              <div className="flex-1 overflow-y-auto p-6 md:p-10 custom-scrollbar">
+                <div className="max-w-4xl mx-auto space-y-10">
+                   {/* Add New Item Section */}
+                   <div className={`p-8 ${activeTab === 'theory' ? 'bg-primary/5 border-primary/10' : 'bg-purple-50 border-purple-100'} border-2 border-dashed rounded-[2.5rem] flex flex-col md:flex-row gap-4 items-center`}>
+                      <div className={`w-14 h-14 rounded-2xl ${activeTab === 'theory' ? 'bg-primary text-white' : 'bg-purple-600 text-white'} flex items-center justify-center shrink-0`}>
+                        <Plus size={24} />
+                      </div>
+                      <div className="flex-1 text-center md:text-left">
+                        <h4 className="font-extrabold text-text">Quick Add</h4>
+                        <p className="text-xs text-text-muted font-bold uppercase tracking-widest">Manually insert a {activeTab === 'theory' ? 'lecture topic' : 'lab experiment'}</p>
+                      </div>
+                      <div className="flex w-full md:w-auto gap-2">
+                        <input 
+                          type="text" 
+                          placeholder={activeTab === 'theory' ? "Topic name..." : "Experiment title..."}
+                          value={newItemName}
+                          onChange={(e) => setNewItemName(e.target.value)}
+                          className="flex-1 md:w-64 px-5 py-3 rounded-2xl border border-gray-200 focus:ring-2 focus:ring-primary/20 outline-none font-bold text-sm"
+                        />
+                        <button 
+                          onClick={handleAddItem}
+                          disabled={!newItemName || isSubmitting}
+                          className={`px-6 py-3 ${themeBg} text-white rounded-2xl font-black text-xs uppercase hover:opacity-90 transition-all disabled:opacity-50 shadow-lg shadow-gray-200`}
+                        >
+                           Add
+                        </button>
+                      </div>
+                   </div>
+
+                   {/* List Section */}
+                   <div className="space-y-4">
+                      <div className="flex items-center justify-between px-2">
+                        <h4 className="text-sm font-black text-text-muted uppercase tracking-[0.2em]">Curriculum Overview</h4>
+                        <span className="text-[10px] font-black text-primary uppercase">{activeTab === 'theory' ? lecturePlans.length : experiments.length} Items Total</span>
+                      </div>
+
+                      <div className="grid gap-3">
+                        {((activeTab === 'theory' ? lecturePlans : experiments) as any[]).map((item) => (
+                          <div key={item.id} className="group bg-white p-5 rounded-3xl border border-gray-100 flex items-center justify-between hover:border-gray-200 transition-all">
+                             <div className="flex items-center gap-6 flex-1 pr-4">
+                                <div className={`w-12 h-12 rounded-2xl bg-gray-50 flex items-center justify-center font-black text-xs text-text-muted shrink-0 ${activeTab === 'theory' ? 'group-hover:text-primary group-hover:bg-primary/5' : 'group-hover:text-purple-600 group-hover:bg-purple-50'} transition-all`}>
+                                   {activeTab === 'theory' ? `L${item.lecture_number}` : `E${item.experiment_number}`}
+                                </div>
+                                {editingItem && editingItem.id === item.id ? (
+                                  <div className="flex flex-1 gap-2">
+                                    <input 
+                                      type="text" 
+                                      autoFocus
+                                      value={editingItem.value}
+                                      onChange={(e) => setEditingItem({ ...editingItem, value: e.target.value })}
+                                      className="flex-1 px-4 py-2 rounded-xl border border-primary/30 outline-none font-bold text-sm bg-primary/5"
+                                    />
+                                    <button onClick={() => handleUpdateItem(item.id, activeTab === 'theory' ? 'lecture' : 'experiment', editingItem.value)} className="p-2 bg-emerald-500 text-white rounded-xl"><Save size={18}/></button>
+                                    <button onClick={() => setEditingItem(null)} className="p-2 bg-gray-100 text-text-muted rounded-xl"><X size={18}/></button>
+                                  </div>
+                                ) : (
+                                  <span className="font-bold text-text truncate max-w-[500px]">{activeTab === 'theory' ? item.topic_name : item.title}</span>
+                                )}
+                             </div>
+                             {!editingItem && (
+                               <div className="flex items-center gap-1 opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity">
+                                  <button onClick={() => setEditingItem({id: item.id, type: activeTab === 'theory' ? 'lecture' : 'experiment', value: activeTab === 'theory' ? item.topic_name : item.title})} className="p-3 text-text-muted hover:text-primary hover:bg-primary/5 rounded-xl transition-all"><Edit2 size={18}/></button>
+                                  <button onClick={() => handleDeleteItem(item.id, activeTab === 'theory' ? 'lecture' : 'experiment')} className="p-3 text-text-muted hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-all"><Trash2 size={18}/></button>
+                               </div>
+                             )}
+                          </div>
+                        ))}
+                      </div>
+                   </div>
+
+                   {/* Reset Section */}
+                   <div className="pt-10 border-t border-gray-100">
+                      <div className="p-8 bg-rose-50/50 rounded-[2.5rem] border border-rose-100 flex flex-col md:flex-row items-center justify-between gap-6">
+                        <div className="flex items-center gap-4">
+                           <div className="p-4 bg-rose-500 text-white rounded-2xl"><RefreshCcw size={24}/></div>
+                           <div>
+                             <h4 className="font-black text-text">Reset {activeTab} Data</h4>
+                             <p className="text-sm text-text-muted font-medium italic">Clear all current plans and start fresh with a new upload.</p>
+                           </div>
+                        </div>
+                        <button 
+                          onClick={handleResetSyllabus}
+                          disabled={isSubmitting}
+                          className="px-8 py-4 bg-rose-500 text-white rounded-2xl font-black uppercase text-xs tracking-widest hover:bg-rose-600 transition-all shadow-lg shadow-rose-200"
+                        >
+                          Perform Full Reset
+                        </button>
+                      </div>
+                   </div>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
 
   );

@@ -5,7 +5,7 @@ import {
   AlertCircle, Lightbulb, Upload, CheckCircle2, XCircle
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { lectureService, syllabusService, notificationService } from '../services/api';
+import { lectureService, syllabusService, notificationService, subjectService } from '../services/api';
 import { useDashboardLogic } from '../hooks/useDashboardLogic';
 import UploadPreview from '../components/UploadPreview';
 import type { Timetable, DashboardStats, LecturePlan, Notification, Subject, Experiment } from '../types';
@@ -31,6 +31,11 @@ const Dashboard = () => {
   const [isLectureExpanded, setIsLectureExpanded] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [topicTaught, setTopicTaught] = useState('');
+
+  // New Subject Form States
+  const [isAddingSubject, setIsAddingSubject] = useState(false);
+  const [newSubjectName, setNewSubjectName] = useState('');
+  const [newSubjectCode, setNewSubjectCode] = useState('');
 
   const fetchData = async () => {
     try {
@@ -75,6 +80,34 @@ const Dashboard = () => {
     const file = e.target.files?.[0];
     if (file) {
       setUploadFile(file);
+    }
+  };
+
+  const handleCreateSubject = async () => {
+    if (!newSubjectName || !newSubjectCode) {
+      toast.error('Please fill all fields');
+      return;
+    }
+    setIsSubmitting(true);
+    const payload = {
+      name: newSubjectName,
+      code: newSubjectCode,
+      subject_type: uploadType
+    };
+    console.log("Submitting subject...", payload);
+    try {
+      const res = await subjectService.create(payload);
+      setSubjects(prev => [...prev, res.data]);
+      setSelectedSubjectId(res.data.id);
+      setUploadStep(2);
+      setIsAddingSubject(false);
+      setNewSubjectName('');
+      setNewSubjectCode('');
+      toast.success('Subject created and selected!');
+    } catch (error) {
+      toast.error('Failed to create subject');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -277,7 +310,6 @@ const Dashboard = () => {
           <h3 className="text-lg font-bold text-text ml-2">Quick Actions</h3>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
             {[
-              { label: 'Add Subject', icon: Plus, color: 'text-blue-600', bg: 'bg-blue-50', action: () => {} },
               { label: 'Timetable', icon: Upload, color: 'text-purple-600', bg: 'bg-purple-50', action: () => setShowUploadModal('timetable') },
               { label: 'Syllabus', icon: BookOpen, color: 'text-emerald-600', bg: 'bg-emerald-50', action: () => { setShowUploadModal('syllabus'); setUploadStep(0); } },
               { label: 'Add Students', icon: Users, color: 'text-rose-600', bg: 'bg-rose-50', action: () => {} },
@@ -487,25 +519,69 @@ const Dashboard = () => {
 
                   {uploadStep === 1 && (
                     <div className="space-y-4">
-                      <div className="grid gap-3 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
-                        {filteredSubjects.length > 0 ? filteredSubjects.map(subject => (
-                          <button 
-                            key={subject.id}
-                            onClick={() => { setSelectedSubjectId(subject.id); setUploadStep(2); }}
-                            className="flex items-center justify-between p-5 border border-gray-100 rounded-2xl hover:border-primary/30 hover:bg-primary/5 transition-all group text-left"
-                          >
-                            <div>
-                              <p className="font-black text-text">{subject.name}</p>
-                              <p className="text-[10px] font-bold text-text-muted uppercase tracking-widest">{subject.code}</p>
-                            </div>
-                            <Plus size={18} className="text-text-muted group-hover:text-primary transition-colors" />
-                          </button>
-                        )) : (
-                          <div className="p-10 text-center bg-gray-50 rounded-2xl text-sm italic text-text-muted">
-                            No {uploadType} subjects found.
-                          </div>
-                        )}
+                      <div className="flex items-center justify-between mb-4">
+                         <h4 className="font-bold text-text-muted text-xs uppercase tracking-widest">Select Subject</h4>
+                         <button 
+                           onClick={() => setIsAddingSubject(!isAddingSubject)}
+                           className="text-xs font-black text-primary px-3 py-1.5 bg-primary/5 rounded-lg hover:bg-primary/10 transition-all"
+                         >
+                           {isAddingSubject ? 'View List' : '+ Add New Subject'}
+                         </button>
                       </div>
+
+                      {isAddingSubject ? (
+                        <motion.div 
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          className="space-y-4 p-6 bg-gray-50 rounded-2xl border border-gray-100"
+                        >
+                          <div className="space-y-3">
+                            <input 
+                              type="text" 
+                              placeholder="Subject Name (e.g. Artificial Intelligence)"
+                              value={newSubjectName}
+                              onChange={(e) => setNewSubjectName(e.target.value)}
+                              className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-primary/20 outline-none text-sm"
+                            />
+                            <input 
+                              type="text" 
+                              placeholder="Subject Code (e.g. CS601)"
+                              value={newSubjectCode}
+                              onChange={(e) => setNewSubjectCode(e.target.value)}
+                              className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-primary/20 outline-none text-sm"
+                            />
+                            <div className="pt-2">
+                              <button 
+                                onClick={handleCreateSubject}
+                                disabled={isSubmitting}
+                                className="w-full py-3 bg-primary text-white rounded-xl font-bold text-sm shadow-lg shadow-primary/20 hover:bg-primary-dark transition-all"
+                              >
+                                {isSubmitting ? 'Creating...' : 'Create & Proceed'}
+                              </button>
+                            </div>
+                          </div>
+                        </motion.div>
+                      ) : (
+                        <div className="grid gap-3 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
+                          {filteredSubjects.length > 0 ? filteredSubjects.map(subject => (
+                            <button 
+                              key={subject.id}
+                              onClick={() => { setSelectedSubjectId(subject.id); setUploadStep(2); }}
+                              className="flex items-center justify-between p-5 border border-gray-100 rounded-2xl hover:border-primary/30 hover:bg-primary/5 transition-all group text-left"
+                            >
+                              <div>
+                                <p className="font-black text-text">{subject.name}</p>
+                                <p className="text-[10px] font-bold text-text-muted uppercase tracking-widest">{subject.code}</p>
+                              </div>
+                              <Plus size={18} className="text-text-muted group-hover:text-primary transition-colors" />
+                            </button>
+                          )) : (
+                            <div className="p-10 text-center bg-gray-50 rounded-2xl text-sm italic text-text-muted">
+                              No {uploadType} subjects found. Add a subject to continue.
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
                   )}
 

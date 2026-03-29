@@ -52,9 +52,9 @@ class Timetable(models.Model):
     teacher = models.ForeignKey(Teacher, on_delete=models.CASCADE)
     subject = models.ForeignKey(Subject, on_delete=models.CASCADE)
     subject_type = models.CharField(
-        max_length=10, 
-        choices=[('Theory', 'Theory'), ('Lab', 'Lab')],
-        default='Theory'
+        max_length=20, 
+        choices=[('theory', 'Theory'), ('practical', 'Practical')],
+        default='theory'
     )
     division = models.ForeignKey(Division, on_delete=models.CASCADE)
     batch = models.ForeignKey(Batch, on_delete=models.SET_NULL, null=True, blank=True)

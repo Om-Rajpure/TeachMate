@@ -22,6 +22,9 @@ export const authService = {
 
 export const subjectService = {
   getAll: () => api.get<Subject[]>('/subjects/'),
+  create: (data: Partial<Subject>) => api.post<Subject>('/subjects/', data),
+  update: (id: number, data: Partial<Subject>) => api.put<Subject>(`/subjects/${id}/`, data),
+  delete: (id: number) => api.delete(`/subjects/${id}/`),
 };
 
 export const divisionService = {
@@ -92,6 +95,18 @@ export const syllabusService = {
     api.post('/syllabus/lecture-plan/commit/', { subject_id, entries }),
   commitExperiments: (subject_id: number, entries: any[]) => 
     api.post('/syllabus/experiments/commit/', { subject_id, entries }),
+  
+  // New Manual Management Methods
+  createLecture: (data: any) => api.post('/syllabus/lecture-plan/', data),
+  updateLecture: (id: number, data: any) => api.put(`/syllabus/lecture-plan/${id}/`, data),
+  deleteLecture: (id: number) => api.delete(`/syllabus/lecture-plan/${id}/`),
+  
+  createExperiment: (data: any) => api.post('/syllabus/experiments/', data),
+  updateExperiment: (id: number, data: any) => api.put(`/syllabus/experiments/${id}/`, data),
+  deleteExperiment: (id: number) => api.delete(`/syllabus/experiments/${id}/`),
+
+  resetSyllabus: (subjectId: number) => api.post('/syllabus/lecture-plan/reset/', { subject_id: subjectId }),
+  resetExperiments: (subjectId: number) => api.post('/syllabus/experiments/reset/', { subject_id: subjectId }),
 };
 
 export const markTypeService = {

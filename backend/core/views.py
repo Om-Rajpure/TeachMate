@@ -113,7 +113,10 @@ class TimetableViewSet(viewsets.ModelViewSet):
             try:
                 subject, _ = Subject.objects.get_or_create(
                     code=entry['subject_code'],
-                    defaults={'name': entry['subject_code']}
+                    defaults={
+                        'name': entry['subject_code'],
+                        'subject_type': entry['subject_type'].lower()
+                    }
                 )
                 division, _ = Division.objects.get_or_create(name=entry['division'])
                 batch = None
@@ -124,7 +127,7 @@ class TimetableViewSet(viewsets.ModelViewSet):
                     )
                 teacher = Teacher.objects.first()
                 if not teacher:
-                    teacher = Teacher.objects.create(name="Default Teacher", email="teacher@techmate.ai")
+                    teacher = Teacher.objects.create(name="Default Teacher", email="teacher@teachmate.ai")
                 conflict = Timetable.objects.filter(
                     day=entry['day'],
                     start_time=entry['start_time'],
@@ -187,6 +190,14 @@ class ExperimentViewSet(viewsets.ModelViewSet):
             )
             created_count += 1
         return Response({'status': 'success', 'created_count': created_count})
+
+    @action(detail=False, methods=['post'])
+    def reset(self, request):
+        subject_id = request.data.get('subject_id')
+        if not subject_id:
+            return Response({'error': 'subject_id is required'}, status=status.HTTP_400_BAD_REQUEST)
+        Experiment.objects.filter(subject_id=subject_id).delete()
+        return Response({'status': 'success', 'message': 'Experiments reset successfully'})
 
 class LectureViewSet(viewsets.ModelViewSet):
     queryset = Lecture.objects.all().order_by('-date')
@@ -370,6 +381,15 @@ class LecturePlanViewSet(viewsets.ModelViewSet):
             except Exception as e:
                 warnings.append(f"Error saving L{entry.get('lecture_number')}: {str(e)}")
         return Response({'status': 'success', 'created_count': created_count, 'warnings': warnings})
+
+    @action(detail=False, methods=['post'])
+    def reset(self, request):
+        subject_id = request.data.get('subject_id')
+        if not subject_id:
+            return Response({'error': 'subject_id is required'}, status=status.HTTP_400_BAD_REQUEST)
+        Chapter.objects.filter(subject_id=subject_id).delete()
+        LecturePlan.objects.filter(subject_id=subject_id).delete()
+        return Response({'status': 'success', 'message': 'Syllabus reset successfully'})
 
 class MarkTypeViewSet(viewsets.ModelViewSet):
     queryset = MarkType.objects.all()
