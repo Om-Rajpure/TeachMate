@@ -111,11 +111,15 @@ class TimetableViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['get'])
     def all_grouped(self, request):
         from collections import defaultdict
-        slots = Timetable.objects.all().order_by('start_time')
+        slots = Timetable.objects.all().order_by('day', 'start_time')
         grouped = defaultdict(list)
         for slot in slots:
             grouped[slot.day.lower()].append(TimetableSerializer(slot).data)
         return Response(grouped)
+
+    @action(detail=False, methods=['get'])
+    def all(self, request):
+        return self.all_grouped(request)
 
     @action(detail=False, methods=['get'])
     def today(self, request):

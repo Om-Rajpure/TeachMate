@@ -38,6 +38,7 @@ export const batchService = {
 export const timetableService = {
   exists: () => api.get<{exists: boolean}>('/timetable/exists/'),
   getAll: () => api.get<Timetable[]>('/timetable/'),
+  getAllStructured: () => api.get<Record<string, Timetable[]>>('/timetable/all/'),
   getAllGrouped: () => api.get<Record<string, any[]>>('/timetable/all_grouped/'),
   getToday: () => api.get<any[]>('/timetable/today/'),
   getCurrent: () => api.get<any>('/timetable/current/'),

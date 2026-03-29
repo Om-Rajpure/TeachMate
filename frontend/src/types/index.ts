@@ -44,6 +44,9 @@ export interface Timetable {
   teacher_name?: string;
   division_name?: string;
   batch_name?: string;
+  room?: string;
+  subject_type?: 'theory' | 'practical';
+  subject_name?: string;
   lecture_status?: 'Completed' | 'Skipped' | null;
   lecture_id?: number;
 }
