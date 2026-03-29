@@ -100,24 +100,89 @@ class TimetableViewSet(viewsets.ModelViewSet):
             if os.path.exists(full_path):
                 os.remove(full_path)
 
+    def get_queryset(self):
+        return Timetable.objects.all().order_by('day', 'start_time')
+
+    @action(detail=False, methods=['get'])
+    def exists(self, request):
+        has_timetable = Timetable.objects.exists()
+        return Response({'exists': has_timetable})
+
+    @action(detail=False, methods=['get'])
+    def all_grouped(self, request):
+        from collections import defaultdict
+        slots = Timetable.objects.all().order_by('start_time')
+        grouped = defaultdict(list)
+        for slot in slots:
+            grouped[slot.day.lower()].append(TimetableSerializer(slot).data)
+        return Response(grouped)
+
+    @action(detail=False, methods=['get'])
+    def today(self, request):
+        import datetime
+        day = datetime.datetime.now().strftime('%A')
+        slots = Timetable.objects.filter(day=day).order_by('start_time')
+        return Response(TimetableSerializer(slots, many=True).data)
+
+    @action(detail=False, methods=['get'])
+    def current(self, request):
+        import datetime
+        now = datetime.datetime.now()
+        day = now.strftime('%A')
+        current_time = now.time()
+        
+        slot = Timetable.objects.filter(
+            day=day, 
+            start_time__lte=current_time, 
+            end_time__gte=current_time
+        ).first()
+        
+        if slot:
+            return Response(TimetableSerializer(slot).data)
+        return Response({'message': 'No active lecture'}, status=status.HTTP_404_NOT_FOUND)
+
+    @action(detail=False, methods=['post'])
+    def parse(self, request):
+        file_obj = request.FILES.get('file')
+        if not file_obj:
+            return Response({'error': 'No file provided'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        path = default_storage.save('tmp/' + file_obj.name, ContentFile(file_obj.read()))
+        full_path = os.path.join(settings.MEDIA_ROOT, path)
+        
+        try:
+            entries = TimetableParser.parse_excel(full_path)
+            return Response(entries)
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        finally:
+            if os.path.exists(full_path):
+                os.remove(full_path)
+
     @action(detail=False, methods=['post'])
     def commit(self, request):
         entries = request.data
         if not isinstance(entries, list):
             return Response({'error': 'Expected a list of entries'}, status=status.HTTP_400_BAD_REQUEST)
         
+        # Clear existing timetable for this teacher (Global for now in this prototype)
+        Timetable.objects.all().delete()
+        
         created_count = 0
         warnings = []
         
         for entry in entries:
             try:
+                # Subject mapping (Ensure theory/practical types match)
+                subject_type = entry['subject_type'].lower()
                 subject, _ = Subject.objects.get_or_create(
                     code=entry['subject_code'],
                     defaults={
                         'name': entry['subject_code'],
-                        'subject_type': entry['subject_type'].lower()
+                        'subject_type': subject_type
                     }
                 )
+                
                 division, _ = Division.objects.get_or_create(name=entry['division'])
                 batch = None
                 if entry.get('batch'):
@@ -125,22 +190,15 @@ class TimetableViewSet(viewsets.ModelViewSet):
                         name=entry['batch'],
                         division=division
                     )
-                teacher = Teacher.objects.first()
-                if not teacher:
-                    teacher = Teacher.objects.create(name="Default Teacher", email="teacher@teachmate.ai")
-                conflict = Timetable.objects.filter(
-                    day=entry['day'],
-                    start_time=entry['start_time'],
-                    room=entry['room']
-                ).exists()
-                if conflict:
-                    warnings.append(f"Conflict detected for {entry['subject_code']} on {entry['day']} at {entry['start_time']}. Entry still saved.")
+                
+                teacher = Teacher.objects.first() or Teacher.objects.create(name="Default Teacher", email="teacher@teachmate.ai")
+                
                 Timetable.objects.create(
                     day=entry['day'],
                     start_time=entry['start_time'],
                     end_time=entry['end_time'],
                     subject=subject,
-                    subject_type=entry['subject_type'],
+                    subject_type=subject_type,
                     division=division,
                     batch=batch,
                     room=entry.get('room', ''),

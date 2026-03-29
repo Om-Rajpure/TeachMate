@@ -48,60 +48,80 @@ class TimetableParser:
     @staticmethod
     def _process_dataframe(df):
         entries = []
-        time_slots = df.columns
+        # Normalizing index and headers
+        df.index = [str(i).strip().upper() for i in df.index]
+        df.columns = [str(c).strip().upper() for c in df.columns]
+        
+        # Mapping slots to detect duration
+        time_slot_list = list(df.columns)
         
         for day_raw, row in df.iterrows():
-            day = TimetableParser._map_day(str(day_raw))
+            day = TimetableParser._map_day(day_raw)
             if not day:
                 continue
 
-            for slot_raw, cell in row.items():
+            # Tracking processed slots for merged cell handling (Labs)
+            skip_next = False
+            
+            for i, (slot_raw, cell) in enumerate(row.items()):
+                if skip_next:
+                    skip_next = False
+                    continue
+
                 if pd.isna(cell) or not str(cell).strip():
                     continue
                 
-                # Parse time slot: "9:00 - 10:00" or "9:00-10:00"
-                times = re.findall(r'(\d{1,2}:\d{2})', str(slot_raw))
+                # Parse time: "9-10" or "9:00 - 10:00"
+                times = re.findall(r'(\d{1,2}(?::\d{2})?)', str(slot_raw))
                 if len(times) < 2:
                     continue
                 
-                start_time, end_time = times[0], times[1]
+                # Normalize time format to HH:MM
+                def norm_t(t):
+                    if ':' not in t: return f"{t}:00"
+                    return t
                 
-                # Interpret cell content
-                # Format: Subject \n Div/Batch \n Room
-                cell_data = [line.strip() for line in str(cell).split('\n') if line.strip()]
-                if not cell_data:
+                start_time = norm_t(times[0])
+                end_time = norm_t(times[1])
+                
+                # Intelligent Regex Parsing
+                cell_str = str(cell).strip().upper()
+                
+                # Regex Patterns
+                # Subject: [A-Z0-9]+ (at start)
+                # Batch: B[0-9]+
+                # Room: [0-9]{3,4}
+                subject_match = re.search(r'^[A-Z0-9]+', cell_str)
+                batch_match = re.search(r'B[0-9]+', cell_str)
+                room_match = re.search(r'[0-9]{3,4}', cell_str)
+                
+                if not subject_match:
                     continue
-
-                subject_code = cell_data[0]
-                subject_type = 'Lab' if subject_code.upper().endswith('L') else 'Theory'
-                clean_subject = subject_code[:-1] if subject_type == 'Lab' else subject_code
-
-                division = ''
-                batch = ''
-                room = ''
-
-                if len(cell_data) > 1:
-                    # Look for Div/Batch: "TE-A" or "TE-A(B1)"
-                    div_match = re.search(r'([A-Z0-9]+-[A-Z])(?:\(([A-Z0-9]+)\))?', cell_data[1])
-                    if div_match:
-                        division = div_match.group(1)
-                        batch = div_match.group(2) if div_match.group(2) else ''
-                    else:
-                        division = cell_data[1]
                 
-                if len(cell_data) > 2:
-                    room = cell_data[2]
+                subject_code = subject_match.group(0)
+                is_lab = subject_code.endswith('L')
+                subject_type = 'Practical' if is_lab else 'Theory'
+                
+                # Handle Duration (1h Theory / 2h Lab)
+                if is_lab:
+                    # Look ahead to next slot to extend end_time
+                    if i + 1 < len(time_slot_list):
+                        next_slot = time_slot_list[i+1]
+                        next_times = re.findall(r'(\d{1,2}(?::\d{2})?)', str(next_slot))
+                        if len(next_times) >= 2:
+                            end_time = norm_t(next_times[1])
+                            skip_next = True # Merged logic: skip next column as it was part of this lab
 
                 entries.append({
                     'day': day,
                     'start_time': start_time,
                     'end_time': end_time,
-                    'subject_code': clean_subject,
+                    'subject_code': subject_code,
                     'subject_type': subject_type,
-                    'division': division,
-                    'batch': batch,
-                    'room': room,
-                    'original_cell': str(cell)
+                    'division': 'TE-A', # Fallback for now, could extract if pattern matches
+                    'batch': batch_match.group(0) if batch_match else '',
+                    'room': room_match.group(0) if room_match else '',
+                    'original_cell': cell_str
                 })
         
         return entries

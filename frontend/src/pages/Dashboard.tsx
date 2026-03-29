@@ -8,6 +8,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { lectureService, syllabusService, notificationService, subjectService } from '../services/api';
 import { useDashboardLogic } from '../hooks/useDashboardLogic';
 import UploadPreview from '../components/UploadPreview';
+import TimetableCard from '../components/TimetableCard';
 import type { Timetable, DashboardStats, LecturePlan, Notification, Subject, Experiment } from '../types';
 import { toast } from 'react-toastify';
 
@@ -292,12 +293,8 @@ const Dashboard = () => {
                   {nextLecture ? `Next: ${nextLecture.subject_details?.name} at ${nextLecture.start_time.slice(0, 5)}` : 'You are all set for today!'}
                 </p>
               </div>
-              <button 
-                onClick={() => navigate('/app/timetable')}
-                className="px-6 py-3 text-primary font-bold hover:bg-primary/5 rounded-2xl transition-all"
-              >
-                View Timetable
-              </button>
+              {/* Only show view timetable button if it actually exists */}
+              <TimetableCard onUploadClick={() => setShowUploadModal('timetable')} isCompact />
             </motion.div>
           )}
         </AnimatePresence>
@@ -309,8 +306,8 @@ const Dashboard = () => {
         <section className="lg:col-span-2 space-y-4">
           <h3 className="text-lg font-bold text-text ml-2">Quick Actions</h3>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+            <TimetableCard onUploadClick={() => setShowUploadModal('timetable')} />
             {[
-              { label: 'Timetable', icon: Upload, color: 'text-purple-600', bg: 'bg-purple-50', action: () => setShowUploadModal('timetable') },
               { label: 'Syllabus', icon: BookOpen, color: 'text-emerald-600', bg: 'bg-emerald-50', action: () => { setShowUploadModal('syllabus'); setUploadStep(0); } },
               { label: 'Add Students', icon: Users, color: 'text-rose-600', bg: 'bg-rose-50', action: () => {} },
               { label: 'Attendance', icon: CheckCircle2, color: 'text-amber-600', bg: 'bg-amber-50', action: () => navigate('/app/attendance') },

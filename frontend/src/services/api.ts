@@ -36,10 +36,10 @@ export const batchService = {
 };
 
 export const timetableService = {
-  getAll: (day?: string) => api.get<Timetable[]>(`/timetable/${day ? `?day=${day}` : ''}`),
-  create: (data: Partial<Timetable>) => api.post<Timetable>('/timetable/', data),
-  update: (id: number, data: Partial<Timetable>) => api.put<Timetable>(`/timetable/${id}/`, data),
-  delete: (id: number) => api.delete(`/timetable/${id}/`),
+  exists: () => api.get<{exists: boolean}>('/timetable/exists/'),
+  getAllGrouped: () => api.get<Record<string, any[]>>('/timetable/all_grouped/'),
+  getToday: () => api.get<any[]>('/timetable/today/'),
+  getCurrent: () => api.get<any>('/timetable/current/'),
   parse: (file: File) => {
     const formData = new FormData();
     formData.append('file', file);

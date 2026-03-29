@@ -94,6 +94,7 @@ const UploadPreview: React.FC<UploadPreviewProps> = ({ type, file, subjectId, su
         if (res.data.warnings?.length > 0) {
           res.data.warnings.forEach((w: string) => toast.warning(w));
         }
+        window.dispatchEvent(new CustomEvent('timetable-updated'));
         onSave(data);
       } else {
         if (!subjectId) {
