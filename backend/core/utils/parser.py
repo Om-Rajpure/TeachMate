@@ -201,7 +201,7 @@ class TimetableParser:
         # Mapping rules for Practical/Lab
         col_map = {
             'exp_no': ['Experiment No', 'Exp No', 'Sr No', 'No', '#'],
-            'title': ['Experiment Name', 'Experiment Title', 'Title', 'Experiment', 'Name']
+            'title': ['Experiment Name', 'Experiment Title', 'Name of Experiment', 'Title', 'Experiment', 'Name']
         }
         
         def find_col(possible_names):
