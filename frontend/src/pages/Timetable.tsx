@@ -5,6 +5,7 @@ import { toast } from 'react-toastify';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import TimetableGrid from '../components/TimetableGrid';
+import MobileTimetable from '../components/MobileTimetable';
 import type { Timetable as TimetableType } from '../types';
 
 const Timetable: React.FC = () => {
@@ -12,6 +13,13 @@ const Timetable: React.FC = () => {
   const [structuredTimetable, setStructuredTimetable] = useState<Record<string, TimetableType[]>>({});
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   const fetchTimetable = async () => {
     try {
@@ -102,6 +110,15 @@ const Timetable: React.FC = () => {
                 >
                     Back to Dashboard
                 </button>
+            </motion.div>
+          ) : isMobile ? (
+            <motion.div 
+                key="mobile"
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+            >
+                <MobileTimetable data={structuredTimetable} />
             </motion.div>
           ) : viewMode === 'grid' ? (
             <motion.div 
