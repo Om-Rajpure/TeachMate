@@ -69,12 +69,6 @@ class TimetableViewSet(viewsets.ModelViewSet):
     queryset = Timetable.objects.all()
     serializer_class = TimetableSerializer
 
-    def get_queryset(self):
-        queryset = Timetable.objects.all()
-        day = self.request.query_params.get('day', None)
-        if day:
-            queryset = queryset.filter(day=day)
-        return queryset
 
     @action(detail=False, methods=['post'])
     def parse(self, request):
@@ -82,19 +76,32 @@ class TimetableViewSet(viewsets.ModelViewSet):
         if not file_obj:
             return Response({'error': 'No file provided'}, status=status.HTTP_400_BAD_REQUEST)
         
-        path = default_storage.save('tmp/' + file_obj.name, ContentFile(file_obj.read()))
+        # Logging for debugging
+        print(f"DEBUG: Receiving file: {file_obj.name}, Size: {file_obj.size} bytes")
+        
+        # Ensure we read from start if stream was consumed
+        file_obj.seek(0)
+        
+        # Generate a unique temp path but preserve extension to help detection
+        name_only, ext = os.path.splitext(file_obj.name)
+        if not ext and file_obj.name.endswith('.xlsx'):
+             ext = '.xlsx' # Fallback for some weird cases
+             
+        path = default_storage.save(f'tmp/{name_only}{ext}', ContentFile(file_obj.read()))
         full_path = os.path.join(settings.MEDIA_ROOT, path)
         
         try:
+            print(f"DEBUG: Processing at {full_path}")
             if file_obj.name.endswith('.xlsx'):
                 entries = TimetableParser.parse_excel(full_path)
             elif file_obj.name.endswith('.pdf'):
                 entries = TimetableParser.parse_pdf(full_path)
             else:
-                return Response({'error': 'Unsupported file format'}, status=status.HTTP_400_BAD_REQUEST)
+                return Response({'error': 'Unsupported file format (must be .xlsx or .pdf)'}, status=status.HTTP_400_BAD_REQUEST)
             
             return Response(entries)
         except Exception as e:
+            print(f"DEBUG ERROR in View: {str(e)}")
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         finally:
             if os.path.exists(full_path):
@@ -145,23 +152,6 @@ class TimetableViewSet(viewsets.ModelViewSet):
             return Response(TimetableSerializer(slot).data)
         return Response({'message': 'No active lecture'}, status=status.HTTP_404_NOT_FOUND)
 
-    @action(detail=False, methods=['post'])
-    def parse(self, request):
-        file_obj = request.FILES.get('file')
-        if not file_obj:
-            return Response({'error': 'No file provided'}, status=status.HTTP_400_BAD_REQUEST)
-        
-        path = default_storage.save('tmp/' + file_obj.name, ContentFile(file_obj.read()))
-        full_path = os.path.join(settings.MEDIA_ROOT, path)
-        
-        try:
-            entries = TimetableParser.parse_excel(full_path)
-            return Response(entries)
-        except Exception as e:
-            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-        finally:
-            if os.path.exists(full_path):
-                os.remove(full_path)
 
     @action(detail=False, methods=['post'])
     def commit(self, request):
@@ -213,8 +203,8 @@ class TimetableViewSet(viewsets.ModelViewSet):
                 warnings.append(f"Error saving {entry.get('subject_code')}: {str(e)}")
         
         return Response({
-            'status': 'success',
-            'created_count': created_count,
+            'message': 'Timetable uploaded successfully',
+            'slots_created': created_count,
             'warnings': warnings
         })
 

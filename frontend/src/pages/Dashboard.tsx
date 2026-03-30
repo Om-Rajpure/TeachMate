@@ -468,13 +468,20 @@ const Dashboard = () => {
                   </button>
                 )}
               </div>
-              <p className="text-text-muted mb-8 italic text-sm">
-                Step {uploadStep + 1}: {
-                  uploadStep === 0 ? 'Select academic type' :
-                  uploadStep === 1 ? 'Choose the target subject' :
-                  'Upload the document'
-                }
-              </p>
+              {showUploadModal === 'syllabus' && (
+                <p className="text-text-muted mb-8 italic text-sm">
+                  Step {uploadStep + 1}: {
+                    uploadStep === 0 ? 'Select academic type' :
+                    uploadStep === 1 ? 'Choose the target subject' :
+                    'Upload the document'
+                  }
+                </p>
+              )}
+              {showUploadModal === 'timetable' && !uploadFile && (
+                <p className="text-text-muted mb-8 italic text-sm">
+                  Upload your weekly schedule in Excel or PDF format
+                </p>
+              )}
 
               {uploadFile ? (
                 <UploadPreview 

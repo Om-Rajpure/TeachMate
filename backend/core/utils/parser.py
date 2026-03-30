@@ -14,11 +14,170 @@ class TimetableParser:
     @staticmethod
     def parse_excel(file_path):
         """
-        Parses an Excel timetable. 
-        Expects Days in first column and Time Slots in header.
+        Robustly parses an Excel timetable following production-ready standards.
+        Handles merged cells, multiline content, and intelligent header detection.
         """
-        df = pd.read_excel(file_path, index_col=0)
-        return TimetableParser._process_dataframe(df)
+        # Step 1: Safe File Loading
+        try:
+            print(f"DEBUG: Reading Excel file: {file_path}")
+            # Explicitly specify openpyxl engine for .xlsx files
+            df = pd.read_excel(file_path, header=None, engine='openpyxl')
+            print("-" * 30)
+            print(f"DEBUG: PROCESSING EXCEL: {file_path}")
+            print(f"DEBUG: Shape: {df.shape}")
+            print(df.head())
+            print("-" * 30)
+        except Exception as e:
+            print(f"DEBUG ERROR: Failed to read excel: {str(e)}")
+            raise ValueError(f"Invalid Excel file (engine: openpyxl): {str(e)}")
+
+        if df.empty:
+            raise ValueError("Empty file")
+
+        # Step 2: Handle Merged Cells (Horizontal then Vertical)
+        # axis=1 for horizontal merges, axis=0 for vertical merges
+        df = df.fillna(method='ffill', axis=1)
+        df = df.fillna(method='ffill', axis=0)
+
+        # Step 3: Remove Useless Rows
+        # Remove fully empty rows
+        df = df.dropna(how='all')
+        # Remove rows containing only "----"
+        df = df[~df.apply(lambda x: x.astype(str).str.contains('----').all(), axis=1)]
+
+        # Step 4: Detect Time Header Row
+        time_slot_row_index = -1
+        time_slots_row = []
+        
+        # Regex for time slots like 9:00, 10:00-11:00, or 9:00-10:00 (user specified r"\d{1,2}:\d{2}")
+        # Improved regex to handle slots even if they lack colons like 9-10
+        time_regex = r"\d{1,2}(?::\d{2})?"
+        
+        for idx, row in df.iterrows():
+            matches = row.astype(str).apply(lambda x: bool(re.search(time_regex, x)))
+            # A time header row usually has multiple slots like "9:00-10:00"
+            if matches.sum() >= 2:
+                # Double check if it actually looks like a time header (contains '-' or ':' in multiple cells)
+                potential_slots = row.astype(str).apply(lambda x: bool(re.search(r"\d{1,2}(?::\d{2})?\s*[-–]\s*\d{1,2}", x)))
+                if potential_slots.sum() >= 2:
+                    time_slot_row_index = idx
+                    time_slots_row = row.tolist()
+                    break
+        
+        if time_slot_row_index == -1:
+            raise ValueError("No time slots found: Format should contain slots like '9:45-10:45'")
+
+        # Step 5: Detect Day Column
+        day_col_index = -1
+        days_to_find = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN']
+        
+        for col_idx in range(df.shape[1]):
+            matches = df.iloc[:, col_idx].astype(str).str.upper().apply(lambda x: x.strip() in days_to_find)
+            if matches.sum() >= 1: 
+                day_col_index = col_idx
+                break
+        
+        if day_col_index == -1:
+             raise ValueError("Invalid timetable format: No Day column (MON, TUE, etc.) found")
+
+        # Step 6-10: Parse content and save entries
+        entries = []
+        
+        for idx, row in df.iterrows():
+            # Skip the row if it's the header itself
+            if idx == time_slot_row_index:
+                continue
+                
+            day_raw = str(row[day_col_index]).strip().upper()
+            day = TimetableParser._map_day(day_raw) # Normalized to MONDAY, TUESDAY...
+            if not day:
+                continue
+
+            for col_idx, cell in enumerate(row):
+                # Skip columns before or at the day column
+                if col_idx <= day_col_index:
+                    continue
+                
+                # Get the time slot for this column
+                slot_raw = str(time_slots_row[col_idx])
+                times = re.findall(r'(\d{1,2}(?::\d{2})?)', slot_raw)
+                if len(times) < 2:
+                    continue
+                
+                # Normalize time (9 -> 09:00)
+                def normalize_time(t):
+                    if ':' not in t: 
+                        return f"{int(t):02d}:00"
+                    h, m = t.split(':')
+                    return f"{int(h):02d}:{m}"
+                
+                try:
+                    start_time = normalize_time(times[0])
+                    end_time = normalize_time(times[1])
+                except:
+                    continue
+
+                # Step 6: Parse Cell Content (split by newline and space)
+                cell_str = str(cell).strip()
+                
+                # Step 8: Skip Invalid Cells
+                if not cell_str or cell_str.upper() in ['NAN', '----', 'BREAK', 'RECESS', 'LUNCH', 'EMPTY']:
+                    continue
+                
+                # Step 9: Debug Logging (Mandatory)
+                print(f"Day: {day}")
+                print(f"Time: {start_time}–{end_time}")
+                print(f"Raw: \"{cell_str}\"")
+
+                # Extract using regex (case-insensitive for code/batch)
+                subject_code_match = re.search(r'[A-Z]{2,5}', cell_str.upper())
+                batch_match = re.search(r'B\d+', cell_str.upper())
+                room_match = re.search(r'\d{3,4}', cell_str)
+                
+                subject_code = subject_code_match.group(0) if subject_code_match else ""
+                batch = batch_match.group(0) if batch_match else ""
+                room = room_match.group(0) if room_match else ""
+
+                if not subject_code or subject_code in ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN']:
+                    continue
+
+                # Step 7: Handle Practical (Detect 'L' suffix)
+                is_lab = subject_code.endswith('L')
+                subject_type = 'PRACTICAL' if is_lab else 'THEORY'
+
+                print(f"Parsed: Subject: {subject_code}, Type: {subject_type}, Batch: {batch}, Room: {room}")
+                print("-" * 10)
+
+                # Merge consecutive slots (Practical 2h slots)
+                # If the same subject/batch exists right before this slot on the same day
+                existing_entry = None
+                for entry in entries:
+                    if (entry['day'] == day and 
+                        entry['subject_code'] == subject_code and 
+                        entry['batch'] == batch and
+                        entry['end_time'] == start_time):
+                        existing_entry = entry
+                        break
+                
+                if existing_entry:
+                    existing_entry['end_time'] = end_time
+                else:
+                    entries.append({
+                        'day': day,
+                        'start_time': start_time,
+                        'end_time': end_time,
+                        'subject_code': subject_code,
+                        'subject_type': subject_type.lower(),
+                        'division': 'TE-A', # Default division as per current system
+                        'batch': batch,
+                        'room': room
+                    })
+        
+        return entries
+
+    @staticmethod
+    def _map_day(day_raw):
+        return TimetableParser.DAYS_MAP.get(day_raw.strip().upper())
 
     @staticmethod
     def parse_pdf(file_path):
@@ -78,7 +237,7 @@ class TimetableParser:
                 
                 # Normalize time format to HH:MM
                 def norm_t(t):
-                    if ':' not in t: return f"{t}:00"
+                    if t and ':' not in t: return f"{t}:00"
                     return t
                 
                 start_time = norm_t(times[0])
@@ -87,10 +246,6 @@ class TimetableParser:
                 # Intelligent Regex Parsing
                 cell_str = str(cell).strip().upper()
                 
-                # Regex Patterns
-                # Subject: [A-Z0-9]+ (at start)
-                # Batch: B[0-9]+
-                # Room: [0-9]{3,4}
                 subject_match = re.search(r'^[A-Z0-9]+', cell_str)
                 batch_match = re.search(r'B[0-9]+', cell_str)
                 room_match = re.search(r'[0-9]{3,4}', cell_str)
@@ -102,26 +257,23 @@ class TimetableParser:
                 is_lab = subject_code.endswith('L')
                 subject_type = 'Practical' if is_lab else 'Theory'
                 
-                # Handle Duration (1h Theory / 2h Lab)
                 if is_lab:
-                    # Look ahead to next slot to extend end_time
                     if i + 1 < len(time_slot_list):
                         next_slot = time_slot_list[i+1]
                         next_times = re.findall(r'(\d{1,2}(?::\d{2})?)', str(next_slot))
                         if len(next_times) >= 2:
                             end_time = norm_t(next_times[1])
-                            skip_next = True # Merged logic: skip next column as it was part of this lab
+                            skip_next = True
 
                 entries.append({
                     'day': day,
                     'start_time': start_time,
                     'end_time': end_time,
                     'subject_code': subject_code,
-                    'subject_type': subject_type,
-                    'division': 'TE-A', # Fallback for now, could extract if pattern matches
+                    'subject_type': subject_type.lower(),
+                    'division': 'TE-A',
                     'batch': batch_match.group(0) if batch_match else '',
-                    'room': room_match.group(0) if room_match else '',
-                    'original_cell': cell_str
+                    'room': room_match.group(0) if room_match else ''
                 })
         
         return entries
@@ -259,8 +411,4 @@ class TimetableParser:
 
         return entries
 
-    @staticmethod
-    def _map_day(day_str):
-        day_upper = day_str.strip().upper()
-        return TimetableParser.DAYS_MAP.get(day_upper)
 
