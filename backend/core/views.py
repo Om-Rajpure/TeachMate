@@ -3,7 +3,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from django.utils import timezone
 from .models import (
-    Subject, Teacher, Division, Batch, Timetable, Lecture, Student,
+    Subject, Teacher, Division, Batch, Timetable, Lecture, Student, StudentSubject,
     Attendance, Chapter, LecturePlan, MarkType, Mark,
     Notification, ResourceFile, Experiment
 )
@@ -312,11 +312,16 @@ class LectureViewSet(viewsets.ModelViewSet):
         return Response(data)
 
 class StudentViewSet(viewsets.ModelViewSet):
-    queryset = Student.objects.all()
+    queryset = Student.objects.all().order_by('name')
     serializer_class = StudentSerializer
 
     def get_queryset(self):
-        queryset = Student.objects.all()
+        queryset = Student.objects.all().order_by('name')
+        subject_id = self.request.query_params.get('subject_id')
+        if subject_id:
+            queryset = Student.objects.filter(subject_links__subject_id=subject_id).order_by('name')
+        
+        # Additional filters
         division = self.request.query_params.get('division', None)
         batch = self.request.query_params.get('batch', None)
         if division:
@@ -324,6 +329,125 @@ class StudentViewSet(viewsets.ModelViewSet):
         if batch:
             queryset = queryset.filter(batch_id=batch)
         return queryset
+
+    def create(self, request, *args, **kwargs):
+        subject_id = request.data.get('subject_id')
+        if not subject_id:
+            return Response({'error': 'subject_id is required'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        name = request.data.get('name', '').strip()
+        division_name = request.data.get('division', '').strip()
+        batch_name = request.data.get('batch', '').strip()
+
+        if not name or not division_name:
+            return Response({'error': 'Name and Division are required'}, status=status.HTTP_400_BAD_REQUEST)
+
+        division, _ = Division.objects.get_or_create(name=division_name)
+        batch = None
+        if batch_name:
+            batch, _ = Batch.objects.get_or_create(name=batch_name, division=division)
+
+        # Create or find student
+        student, _ = Student.objects.get_or_create(
+            name=name,
+            division=division,
+            defaults={'batch': batch}
+        )
+        
+        # Link to Subject
+        StudentSubject.objects.get_or_create(student=student, subject_id=subject_id)
+        
+        return Response(StudentSerializer(student).data, status=status.HTTP_201_CREATED)
+
+    def destroy(self, request, *args, **kwargs):
+        subject_id = self.request.query_params.get('subject_id')
+        student = self.get_object()
+        
+        if subject_id:
+            # Remove link only
+            StudentSubject.objects.filter(student=student, subject_id=subject_id).delete()
+            return Response({'message': 'Student removed from subject'}, status=status.HTTP_200_OK)
+        
+        # Fallback to global delete (existing feature)
+        return super().destroy(request, *args, **kwargs)
+
+    @action(detail=False, methods=['post'])
+    def upload(self, request):
+        import pandas as pd
+        file_obj = request.FILES.get('file')
+        subject_id = request.data.get('subject_id')
+        mode = request.data.get('mode', 'append') # 'append' or 'replace'
+
+        if not file_obj or not subject_id:
+            return Response({'error': 'File and subject_id are required'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            subject = Subject.objects.get(id=subject_id)
+        except Subject.DoesNotExist:
+            return Response({'error': 'Subject not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        # Save and read excel
+        path = default_storage.save('tmp/' + file_obj.name, ContentFile(file_obj.read()))
+        full_path = os.path.join(settings.MEDIA_ROOT, path)
+
+        try:
+            df = pd.read_excel(full_path, engine='openpyxl')
+            
+            # Smart Column Mapping
+            col_map = {}
+            for col in df.columns:
+                c_lower = str(col).lower()
+                if 'name' in c_lower: col_map['name'] = col
+                if 'div' in c_lower: col_map['division'] = col
+                if 'batch' in c_lower: col_map['batch'] = col
+
+            if 'name' not in col_map:
+                return Response({'error': 'Excel must contain a column with "Name"'}, status=status.HTTP_400_BAD_REQUEST)
+
+            if mode == 'replace':
+                StudentSubject.objects.filter(subject=subject).delete()
+
+            # Find a default division if missing
+            default_division_name = "TE-A" # Prototypical default
+            if 'division' not in col_map:
+                # Try to find any existing division
+                first_div = Division.objects.first()
+                if first_div:
+                    default_division_name = first_div.name
+
+            created_count = 0
+            for _, row in df.iterrows():
+                name = str(row[col_map['name']]).strip()
+                div_name = str(row[col_map['division']]).strip() if 'division' in col_map else default_division_name
+                b_name = str(row[col_map['batch']]).strip() if 'batch' in col_map else ""
+
+                if not name or name == 'nan' or not div_name or div_name == 'nan':
+                    continue
+
+                division, _ = Division.objects.get_or_create(name=div_name)
+                batch = None
+                if b_name and b_name != 'nan':
+                    batch, _ = Batch.objects.get_or_create(name=b_name, division=division)
+
+                student, _ = Student.objects.get_or_create(
+                    name=name,
+                    division=division,
+                    defaults={'batch': batch}
+                )
+                
+                _, created = StudentSubject.objects.get_or_create(student=student, subject=subject)
+                if created:
+                    created_count += 1
+
+            return Response({
+                'message': f'Successfully processed {created_count} students.',
+                'students_added': created_count
+            })
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        finally:
+            if os.path.exists(full_path):
+                os.remove(full_path)
 
     @action(detail=False, methods=['get'])
     def defaulters(self, request):

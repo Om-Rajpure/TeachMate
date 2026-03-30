@@ -65,12 +65,24 @@ class Timetable(models.Model):
 
 class Student(models.Model):
     name = models.CharField(max_length=100)
-    roll_number = models.CharField(max_length=20, unique=True)
+    roll_number = models.CharField(max_length=20, blank=True, null=True)
     division = models.ForeignKey(Division, on_delete=models.CASCADE, related_name='students')
     batch = models.ForeignKey(Batch, on_delete=models.SET_NULL, null=True, blank=True, related_name='students')
+    created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return f"{self.roll_number} - {self.name}"
+        return f"{self.name} ({self.division.name})"
+
+class StudentSubject(models.Model):
+    student = models.ForeignKey(Student, on_delete=models.CASCADE, related_name='subject_links')
+    subject = models.ForeignKey(Subject, on_delete=models.CASCADE, related_name='student_links')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('student', 'subject')
+
+    def __str__(self):
+        return f"{self.student.name} -> {self.subject.name}"
 
 class Chapter(models.Model):
     subject = models.ForeignKey(Subject, on_delete=models.CASCADE, related_name='chapters')

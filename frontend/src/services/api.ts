@@ -66,12 +66,28 @@ export const lectureService = {
 };
 
 export const studentService = {
-  getAll: (divisionId?: number, batchId?: number) => {
+  getAll: (subjectId?: number, divisionId?: number, batchId?: number) => {
     let url = '/students/';
     const params = new URLSearchParams();
+    if (subjectId) params.append('subject_id', subjectId.toString());
     if (divisionId) params.append('division', divisionId.toString());
     if (batchId) params.append('batch', batchId.toString());
     return api.get<Student[]>(`${url}${params.toString() ? '?' + params.toString() : ''}`);
+  },
+  create: (data: { name: string; division: string; batch?: string; subject_id: number }) => 
+    api.post<Student>('/students/', data),
+  update: (id: number, data: Partial<Student>) => 
+    api.put<Student>(`/students/${id}/`, data),
+  delete: (id: number, subjectId?: number) => 
+    api.delete(`/students/${id}/${subjectId ? `?subject_id=${subjectId}` : ''}`),
+  upload: (file: File, subjectId: number, mode: 'append' | 'replace' = 'append') => {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('subject_id', subjectId.toString());
+    formData.append('mode', mode);
+    return api.post('/students/upload/', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
   },
   getDefaulters: () => api.get<Student[]>('/students/defaulters/'),
 };

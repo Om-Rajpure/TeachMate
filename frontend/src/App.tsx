@@ -12,6 +12,8 @@ import Marks from './pages/Marks';
 import Analytics from './pages/Analytics';
 import Notifications from './pages/Notifications';
 import Resources from './pages/Resources';
+import SelectSubject from './pages/SelectSubject';
+import ManageStudents from './pages/ManageStudents';
 
 function App() {
   return (
@@ -39,6 +41,10 @@ function App() {
         <Route path="analytics" element={<Analytics />} />
         <Route path="notifications" element={<Notifications />} />
         <Route path="resources" element={<Resources />} />
+        <Route path="students">
+          <Route path="select-subject" element={<SelectSubject />} />
+          <Route path="manage" element={<ManageStudents />} />
+        </Route>
       </Route>
 
       {/* Catch-all redirect */}

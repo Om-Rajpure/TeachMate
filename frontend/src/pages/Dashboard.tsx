@@ -309,7 +309,7 @@ const Dashboard = () => {
             <TimetableCard onUploadClick={() => setShowUploadModal('timetable')} />
             {[
               { label: 'Syllabus', icon: BookOpen, color: 'text-emerald-600', bg: 'bg-emerald-50', action: () => { setShowUploadModal('syllabus'); setUploadStep(0); } },
-              { label: 'Add Students', icon: Users, color: 'text-rose-600', bg: 'bg-rose-50', action: () => {} },
+              { label: 'Add Students', icon: Users, color: 'text-rose-600', bg: 'bg-rose-50', action: () => navigate('/app/students/select-subject') },
               { label: 'Attendance', icon: CheckCircle2, color: 'text-amber-600', bg: 'bg-amber-50', action: () => navigate('/app/attendance') },
               { label: 'Analytics', icon: BarChart3, color: 'text-indigo-600', bg: 'bg-indigo-50', action: () => navigate('/app/analytics') },
             ].map((action) => (

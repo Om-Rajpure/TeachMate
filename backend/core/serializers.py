@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from .models import (
     Subject, Teacher, Division, Batch, Timetable, Lecture, 
-    Student, Attendance, Chapter, LecturePlan, MarkType, Mark,
+    Student, StudentSubject, Attendance, Chapter, LecturePlan, MarkType, Mark,
     Notification, ResourceFile, Experiment
 )
 
@@ -75,6 +75,14 @@ class StudentSerializer(serializers.ModelSerializer):
         if total == 0: return 0
         present = Attendance.objects.filter(student=obj, status='Present').count()
         return round((present / total) * 100, 2)
+
+class StudentSubjectSerializer(serializers.ModelSerializer):
+    student_details = StudentSerializer(source='student', read_only=True)
+    subject_name = serializers.CharField(source='subject.name', read_only=True)
+
+    class Meta:
+        model = StudentSubject
+        fields = '__all__'
 
 class AttendanceSerializer(serializers.ModelSerializer):
     student_name = serializers.CharField(source='student.name', read_only=True)
