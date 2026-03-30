@@ -463,24 +463,124 @@ class StudentViewSet(viewsets.ModelViewSet):
         return Response(defaulters)
 
 class AttendanceViewSet(viewsets.ModelViewSet):
-    queryset = Attendance.objects.all()
+    queryset = Attendance.objects.all().order_by('-date')
     serializer_class = AttendanceSerializer
 
-    @action(detail=False, methods=['post'], url_path='bulk')
-    def bulk_create(self, request):
+    def get_queryset(self):
+        queryset = Attendance.objects.all().order_by('-date')
+        subject_id = self.request.query_params.get('subject_id')
+        date = self.request.query_params.get('date')
+        division = self.request.query_params.get('division')
+        batch = self.request.query_params.get('batch')
+
+        if subject_id:
+            queryset = queryset.filter(subject_id=subject_id)
+        if date:
+            queryset = queryset.filter(date=date)
+        if division:
+            queryset = queryset.filter(student__division__name=division)
+        if batch:
+            queryset = queryset.filter(student__batch__name=batch)
+        
+        return queryset
+
+    @action(detail=False, methods=['get'], url_path='current-class')
+    def current_class(self, request):
+        import datetime
+        now = datetime.datetime.now()
+        day = now.strftime('%A')
+        current_time = now.time()
+        
+        slot = Timetable.objects.filter(
+            day=day, 
+            start_time__lte=current_time, 
+            end_time__gte=current_time
+        ).select_related('subject', 'division', 'batch').first()
+        
+        if not slot:
+            return Response({'message': 'No ongoing lecture detected'}, status=status.HTTP_404_NOT_FOUND)
+            
+        data = {
+            'subject_id': slot.subject.id,
+            'subject_name': slot.subject.name,
+            'subject_code': slot.subject.code,
+            'type': slot.subject_type.upper(),
+            'division': slot.division.name,
+            'batch': slot.batch.name if slot.batch else None,
+            'start_time': slot.start_time.strftime('%H:%M'),
+            'end_time': slot.end_time.strftime('%H:%M')
+        }
+        
+        if slot.subject_type == 'theory':
+            next_topic = LecturePlan.objects.filter(subject=slot.subject, status='Pending').first()
+            if next_topic:
+                data.update({
+                    'lecture_id': next_topic.id,
+                    'topic_or_title': next_topic.topic_name
+                })
+        else:
+            next_exp = Experiment.objects.filter(subject=slot.subject, status='Pending').first()
+            if next_exp:
+                data.update({
+                    'experiment_id': next_exp.id,
+                    'topic_or_title': next_exp.title
+                })
+                
+        return Response(data)
+
+    @action(detail=False, methods=['post'])
+    def mark(self, request):
+        subject_id = request.data.get('subject_id')
         lecture_id = request.data.get('lecture_id')
+        experiment_id = request.data.get('experiment_id')
+        date = request.data.get('date', timezone.localdate())
         attendance_data = request.data.get('attendance', [])
-        if not lecture_id:
-            return Response({'error': 'lecture_id is required'}, status=status.HTTP_400_BAD_REQUEST)
+
+        if not subject_id:
+            return Response({'error': 'subject_id is required'}, status=status.HTTP_400_BAD_REQUEST)
+        
         results = []
         for entry in attendance_data:
-            obj, created = Attendance.objects.update_or_create(
-                lecture_id=lecture_id,
+            obj, _ = Attendance.objects.update_or_create(
                 student_id=entry['student_id'],
+                subject_id=subject_id,
+                lecture_id=lecture_id,
+                experiment_id=experiment_id,
+                date=date,
                 defaults={'status': entry['status']}
             )
             results.append(AttendanceSerializer(obj).data)
-        return Response(results, status=status.HTTP_201_CREATED)
+            
+        if request.data.get('mark_completed'):
+            if lecture_id:
+                LecturePlan.objects.filter(id=lecture_id).update(status='Completed')
+            if experiment_id:
+                Experiment.objects.filter(id=experiment_id).update(status='Completed')
+                
+        return Response({'message': 'Attendance marked successfully', 'count': len(results)})
+
+    @action(detail=False, methods=['get'])
+    def summary(self, request):
+        subject_id = request.query_params.get('subject_id')
+        if not subject_id:
+            return Response({'error': 'subject_id is required'}, status=status.HTTP_400_BAD_REQUEST)
+
+        students = Student.objects.filter(subject_links__subject_id=subject_id).order_by('name')
+        summary_data = []
+        for student in students:
+            present_count = Attendance.objects.filter(student=student, subject_id=subject_id, status='P').count()
+            total_student_sessions = Attendance.objects.filter(student=student, subject_id=subject_id).count()
+            
+            percentage = round((present_count / total_student_sessions * 100), 2) if total_student_sessions > 0 else 0
+            
+            summary_data.append({
+                'name': student.name,
+                'total_classes': total_student_sessions,
+                'present': present_count,
+                'percentage': percentage
+            })
+            
+        return Response({'students': summary_data})
 
 class ChapterViewSet(viewsets.ModelViewSet):
     queryset = Chapter.objects.all()

@@ -93,6 +93,20 @@ export const studentService = {
 };
 
 export const attendanceService = {
+  getCurrentClass: () => api.get('/attendance/current-class/'),
+  mark: (data: { 
+    subject_id: number; 
+    lecture_id?: number; 
+    experiment_id?: number; 
+    date: string; 
+    attendance: { student_id: number; status: 'P' | 'A' }[];
+    mark_completed?: boolean;
+  }) => api.post('/attendance/mark/', data),
+  getRecords: (params: { subject_id: number; date?: string; division?: string; batch?: string }) => {
+    const query = new URLSearchParams(params as any).toString();
+    return api.get(`/attendance/?${query}`);
+  },
+  getSummary: (subjectId: number) => api.get(`/attendance/summary/?subject_id=${subjectId}`),
   bulkCreate: (data: { lecture_id: number; attendance: { student_id: number; status: string }[] }) => 
     api.post('/attendance/bulk/', data),
 };

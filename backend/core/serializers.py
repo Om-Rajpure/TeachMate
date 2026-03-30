@@ -86,7 +86,9 @@ class StudentSubjectSerializer(serializers.ModelSerializer):
 
 class AttendanceSerializer(serializers.ModelSerializer):
     student_name = serializers.CharField(source='student.name', read_only=True)
-    roll_number = serializers.CharField(source='student.roll_number', read_only=True)
+    subject_name = serializers.CharField(source='subject.name', read_only=True)
+    lecture_topic = serializers.CharField(source='lecture.topic.topic_name', read_only=True, allow_null=True)
+    experiment_title = serializers.CharField(source='experiment.title', read_only=True, allow_null=True)
 
     class Meta:
         model = Attendance

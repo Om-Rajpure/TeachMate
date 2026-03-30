@@ -150,19 +150,22 @@ class Lecture(models.Model):
 
 class Attendance(models.Model):
     STATUS_CHOICES = [
-        ('Present', 'Present'),
-        ('Absent', 'Absent'),
+        ('P', 'Present'),
+        ('A', 'Absent'),
     ]
 
-    lecture = models.ForeignKey(Lecture, on_delete=models.CASCADE, related_name='attendance')
     student = models.ForeignKey(Student, on_delete=models.CASCADE, related_name='attendance_records')
-    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='Present')
+    subject = models.ForeignKey(Subject, on_delete=models.CASCADE, related_name='attendance')
+    lecture = models.ForeignKey(Lecture, on_delete=models.CASCADE, null=True, blank=True, related_name='attendance')
+    experiment = models.ForeignKey(Experiment, on_delete=models.CASCADE, null=True, blank=True, related_name='attendance')
+    date = models.DateField()
+    status = models.CharField(max_length=1, choices=STATUS_CHOICES, default='P')
 
     class Meta:
-        unique_together = ('lecture', 'student')
+        unique_together = ('student', 'subject', 'lecture', 'experiment', 'date')
 
     def __str__(self):
-        return f"{self.student.name} - {self.lecture} - {self.status}"
+        return f"{self.student.name} - {self.subject.name} - {self.date}"
 
 class MarkType(models.Model):
     name = models.CharField(max_length=50) # IA1, IA2, Viva, Assignment, EndSem
