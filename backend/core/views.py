@@ -2,6 +2,7 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from django.utils import timezone
+from django.shortcuts import get_object_or_404
 from .models import (
     Subject, Teacher, Division, Batch, Timetable, Lecture, Student, StudentSubject,
     Attendance, Chapter, LecturePlan, MarkType, Mark,
@@ -581,6 +582,68 @@ class AttendanceViewSet(viewsets.ModelViewSet):
             })
             
         return Response({'students': summary_data})
+
+    @action(detail=False, methods=['get'], url_path='check-existing')
+    def check_existing(self, request):
+        subject_id = request.query_params.get('subject_id')
+        lecture_id = request.query_params.get('lecture_id')
+        experiment_id = request.query_params.get('experiment_id')
+        date = request.query_params.get('date')
+
+        if not subject_id or not date:
+            return Response({'error': 'subject_id and date are required'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Build filter (ensure we only check for non-None IDs)
+        filters = {'subject_id': subject_id, 'date': date}
+        if lecture_id:
+            filters['lecture_id'] = lecture_id
+        if experiment_id:
+            filters['experiment_id'] = experiment_id
+        
+        records = Attendance.objects.filter(**filters)
+        
+        if records.exists():
+            return Response({
+                'exists': True,
+                'data': AttendanceSerializer(records, many=True).data
+            })
+        
+        return Response({'exists': False, 'data': []})
+        
+    @action(detail=False, methods=['get'], url_path='syllabus-all')
+    def syllabus_all(self, request):
+        print(f"DEBUG: syllabus_all called for subject_id={request.query_params.get('subject_id')}")
+        subject_id = request.query_params.get('subject_id')
+        if not subject_id:
+            return Response({'error': 'subject_id is required'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        subject = get_object_or_404(Subject, id=subject_id)
+        
+        data = []
+        if subject.subject_type == 'theory':
+            lectures = LecturePlan.objects.filter(subject_id=subject_id).order_by('lecture_number')
+            for l in lectures:
+                data.append({
+                    'id': l.id,
+                    'type': 'theory',
+                    'number': l.lecture_number,
+                    'topic': l.topic_name,
+                    'display': f"Lecture {l.lecture_number} — {l.topic_name}",
+                    'status': l.status
+                })
+        else:
+            experiments = Experiment.objects.filter(subject_id=subject_id).order_by('experiment_number')
+            for e in experiments:
+                data.append({
+                    'id': e.id,
+                    'type': 'practical',
+                    'number': e.experiment_number,
+                    'topic': e.title,
+                    'display': f"Experiment {e.experiment_number} — {e.title}",
+                    'status': e.status
+                })
+        
+        return Response(data)
 
 class ChapterViewSet(viewsets.ModelViewSet):
     queryset = Chapter.objects.all()

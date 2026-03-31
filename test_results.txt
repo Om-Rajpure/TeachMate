@@ -1,0 +1,31 @@
+============================================================
+MANUAL ATTENDANCE MODE - FULL E2E API TEST
+============================================================
+
+[1] GET /api/subjects/ => 200
+    Found 11 subjects
+
+[2] GET /api/attendance/syllabus-all/?subject_id=7 => 200
+    THIS WAS 500 BEFORE THE FIX!
+    Experiments returned: 5
+
+[3] GET syllabus-all/?subject_id=4 (empty) => 200
+    Items: 0 (triggers No Syllabus Found)
+
+[4] GET check-existing => 200
+    Exists: True
+
+[5] GET /api/students/?subject_id=7 => 200
+    Students: 26
+
+[6] POST /api/attendance/mark/ (CREATE) => 200
+    {'message': 'Attendance marked successfully', 'count': 2}
+
+[7] GET check-existing AFTER mark => exists=True, records=2
+
+[8] POST /api/attendance/mark/ (EDIT) => 200
+    {'message': 'Attendance marked successfully', 'count': 2}
+
+============================================================
+ALL 8 TESTS PASSED
+============================================================

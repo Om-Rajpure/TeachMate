@@ -7,6 +7,7 @@ from .views import (
     StudentViewSet, AttendanceViewSet, 
     ChapterViewSet, LecturePlanViewSet,
     MarkTypeViewSet, MarkViewSet, AnalyticsViewSet,
+    MarkTypeViewSet, MarkViewSet, AnalyticsViewSet,
     NotificationViewSet, ResourceFileViewSet, ExperimentViewSet
 )
 

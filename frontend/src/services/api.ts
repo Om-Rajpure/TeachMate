@@ -1,30 +1,23 @@
 import axios from 'axios';
 import type { 
-  Subject, Division, Batch, Timetable, Student, 
-  Chapter, LecturePlan, DashboardStats,
-  MarkType, Mark, ClassAnalytics, Notification, ResourceFile
+  Subject, Teacher, Division, Batch, Timetable, 
+  Lecture, Student, Chapter, LecturePlan 
 } from '../types';
 
-const API_BASE_URL = 'http://localhost:8001/api';
-
 const api = axios.create({
-  baseURL: API_BASE_URL,
-  withCredentials: true,
+  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8001/api',
 });
 
-// Auth service
-export const authService = {
-  login: (username: string, password: string) =>
-    api.post('/auth/login/', { username, password }),
-  logout: () => api.post('/auth/logout/'),
-  me: () => api.get('/auth/me/'),
-};
+// Add interceptor for auth if needed later
 
 export const subjectService = {
   getAll: () => api.get<Subject[]>('/subjects/'),
-  create: (data: Partial<Subject>) => api.post<Subject>('/subjects/', data),
-  update: (id: number, data: Partial<Subject>) => api.put<Subject>(`/subjects/${id}/`, data),
-  delete: (id: number) => api.delete(`/subjects/${id}/`),
+  getById: (id: number) => api.get<Subject>(`/subjects/${id}/`),
+  create: (data: { name: string; code: string; subject_type: string }) => api.post<Subject>('/subjects/', data),
+};
+
+export const teacherService = {
+  getAll: () => api.get<Teacher[]>('/teachers/'),
 };
 
 export const divisionService = {
@@ -32,37 +25,29 @@ export const divisionService = {
 };
 
 export const batchService = {
-  getAll: (divisionId?: number) => api.get<Batch[]>(`/batches/${divisionId ? `?division=${divisionId}` : ''}`),
+  getAll: () => api.get<Batch[]>('/batches/'),
 };
 
 export const timetableService = {
-  exists: () => api.get<{exists: boolean}>('/timetable/exists/'),
   getAll: () => api.get<Timetable[]>('/timetable/'),
-  getAllStructured: () => api.get<Record<string, Timetable[]>>('/timetable/all/'),
-  getAllGrouped: () => api.get<Record<string, any[]>>('/timetable/all_grouped/'),
-  getToday: () => api.get<any[]>('/timetable/today/'),
-  getCurrent: () => api.get<any>('/timetable/current/'),
-  parse: (file: File) => {
+  upload: (file: File) => {
     const formData = new FormData();
     formData.append('file', file);
-    return api.post<any[]>('/timetable/parse/', formData, {
+    return api.post('/timetable/upload/', formData, {
       headers: { 'Content-Type': 'multipart/form-data' }
     });
   },
-  commit: (data: any[]) => api.post('/timetable/commit/', data),
 };
 
 export const lectureService = {
-  getAll: () => api.get('/lectures/'),
-  getStats: () => api.get<DashboardStats>('/lectures/stats/'),
-  getToday: () => api.get<(Timetable & { lecture_status: string; lecture_id: number })[]>('/lectures/today/'),
+  getAll: () => api.get<Lecture[]>('/lectures/'),
+  getStats: () => api.get('/lectures/stats/'),
+  getToday: () => api.get('/lectures/today/'),
   getSubjects: () => api.get<Subject[]>('/subjects/'),
-  create: (data: any) => api.post('/lectures/', data),
-  update: (id: number, data: any) => api.put(`/lectures/${id}/`, data),
-  markCompleted: (timetableId: number, topicTaught: string, remarks: string = '') => 
-    api.post('/lectures/', { timetable: timetableId, topic_taught: topicTaught, status: 'Completed', remarks }),
-  markSkipped: (timetableId: number, remarks: string = '') => 
-    api.post('/lectures/', { timetable: timetableId, topic_taught: 'Skipped', status: 'Skipped', remarks }),
+  markCompleted: (timetableId: number, topicTaught: string) =>
+    api.post('/lectures/', { timetable: timetableId, date: new Date().toISOString().split('T')[0], topic_taught: topicTaught, status: 'Completed' }),
+  markSkipped: (timetableId: number, remarks: string) => 
+    api.post('/lectures/', { timetable: timetableId, date: new Date().toISOString().split('T')[0], topic_taught: 'Skipped', status: 'Skipped', remarks }),
 };
 
 export const studentService = {
@@ -107,8 +92,11 @@ export const attendanceService = {
     return api.get(`/attendance/?${query}`);
   },
   getSummary: (subjectId: number) => api.get(`/attendance/summary/?subject_id=${subjectId}`),
-  bulkCreate: (data: { lecture_id: number; attendance: { student_id: number; status: string }[] }) => 
-    api.post('/attendance/bulk/', data),
+  checkExisting: (params: { subject_id: number; date: string; lecture_id?: number; experiment_id?: number }) => {
+    const query = new URLSearchParams(params as any).toString();
+    return api.get(`/attendance/check-existing/?${query}`);
+  },
+  getSyllabus: (subjectId: number) => api.get(`/attendance/syllabus-all/?subject_id=${subjectId}`),
 };
 
 export const syllabusService = {
@@ -119,55 +107,43 @@ export const syllabusService = {
     const formData = new FormData();
     formData.append('file', file);
     formData.append('type', type);
-    return api.post<any[]>('/syllabus/lecture-plan/parse/', formData, {
+    return api.post('/syllabus/lecture-plan/upload_syllabus/', formData, {
       headers: { 'Content-Type': 'multipart/form-data' }
     });
-  },
-  commit: (subject_id: number, entries: any[]) => 
-    api.post('/syllabus/lecture-plan/commit/', { subject_id, entries }),
-  commitExperiments: (subject_id: number, entries: any[]) => 
-    api.post('/syllabus/experiments/commit/', { subject_id, entries }),
-  
-  // New Manual Management Methods
-  createLecture: (data: any) => api.post('/syllabus/lecture-plan/', data),
-  updateLecture: (id: number, data: any) => api.put(`/syllabus/lecture-plan/${id}/`, data),
-  deleteLecture: (id: number) => api.delete(`/syllabus/lecture-plan/${id}/`),
-  
-  createExperiment: (data: any) => api.post('/syllabus/experiments/', data),
-  updateExperiment: (id: number, data: any) => api.put(`/syllabus/experiments/${id}/`, data),
-  deleteExperiment: (id: number) => api.delete(`/syllabus/experiments/${id}/`),
-
-  resetSyllabus: (subjectId: number) => api.post('/syllabus/lecture-plan/reset/', { subject_id: subjectId }),
-  resetExperiments: (subjectId: number) => api.post('/syllabus/experiments/reset/', { subject_id: subjectId }),
-};
-
-export const markTypeService = {
-  getAll: (subjectId?: number) => api.get<MarkType[]>(`/mark-types/${subjectId ? `?subject=${subjectId}` : ''}`),
-  create: (data: Partial<MarkType>) => api.post<MarkType>('/mark-types/', data),
+  }
 };
 
 export const markService = {
-  getAll: (params?: any) => api.get<Mark[]>('/marks/', { params }),
-  bulkUpdate: (data: { subject_id: number; mark_type_id: number; marks: { student_id: number; marks_obtained: number }[] }) => 
-    api.post('/marks/bulk/', data),
+  getTypes: () => api.get<any[]>('/mark-types/'),
+  getAll: (subjectId: number) => api.get<any[]>(`/marks/?subject=${subjectId}`),
+  add: (data: any) => api.post('/marks/', data),
 };
 
 export const analyticsService = {
-  getClassAnalytics: () => api.get<ClassAnalytics>('/analytics/class_analytics/'),
+  getDashboard: () => api.get('/analytics/dashboard/'),
+  getSubject: (id: number) => api.get(`/analytics/subject/${id}/`),
 };
 
 export const notificationService = {
-  getAll: () => api.get<Notification[]>('/notifications/'),
-  markAsRead: (id: number) => api.post(`/notifications/${id}/read/`),
-  markAllAsRead: () => api.post('/notifications/read-all/'),
+  getAll: () => api.get('/notifications/'),
+  markAsRead: (id: number) => api.post(`/notifications/${id}/mark_as_read/`),
+  markAllAsRead: () => api.post('/notifications/mark_all_as_read/'),
 };
 
-export const resourceFileService = {
-  getAll: (subjectId?: number) => api.get<ResourceFile[]>('/files/', { params: { subject: subjectId } }),
-  upload: (formData: FormData) => api.post<ResourceFile>('/files/', formData, {
+export const resourceService = {
+  getAll: (subjectId?: number) => api.get(`/files/${subjectId ? `?subject=${subjectId}` : ''}`),
+  upload: (data: FormData) => api.post('/files/', data, {
     headers: { 'Content-Type': 'multipart/form-data' }
   }),
   delete: (id: number) => api.delete(`/files/${id}/`),
 };
+
+// Aliases used by Marks.tsx and Resources.tsx
+export const markTypeService = {
+  getAll: (subjectId?: number) => api.get<any[]>(`/mark-types/${subjectId ? `?subject=${subjectId}` : ''}`),
+  create: (data: any) => api.post('/mark-types/', data),
+};
+
+export const resourceFileService = resourceService;
 
 export default api;
