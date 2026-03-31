@@ -241,7 +241,7 @@ const Attendance = () => {
     setLoading(true);
     try {
       const res = await attendanceService.getRecords({
-        subject_id: filters.subject_id ? Number(filters.subject_id) : undefined as any,
+        subject_id: filters.subject_id ? Number(filters.subject_id) : null as any,
         date: filters.date,
         division: filters.division,
         batch: filters.batch

@@ -567,14 +567,18 @@ class AttendanceViewSet(viewsets.ModelViewSet):
         division = self.request.query_params.get('division')
         batch = self.request.query_params.get('batch')
 
-        if subject_id:
-            queryset = queryset.filter(subject_id=subject_id)
-        if date:
-            queryset = queryset.filter(date=date)
-        if division:
-            queryset = queryset.filter(student__subject_links__division__name=division)
-        if batch:
-            queryset = queryset.filter(student__subject_links__batch__name=batch)
+        try:
+            if subject_id and subject_id != 'undefined' and subject_id.isdigit():
+                queryset = queryset.filter(subject_id=int(subject_id))
+            if date and date != 'undefined' and date != '':
+                queryset = queryset.filter(date=date)
+            if division and division != 'undefined' and division != '':
+                queryset = queryset.filter(student__subject_links__division__name=division)
+            if batch and batch != 'undefined' and batch != '':
+                queryset = queryset.filter(student__subject_links__batch__name=batch)
+        except Exception as e:
+            print(f"Error filtering attendance: {e}")
+            return Attendance.objects.none()
         
         return queryset.distinct()
 
