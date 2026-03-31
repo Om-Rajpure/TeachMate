@@ -211,12 +211,24 @@ const Attendance = () => {
         })),
         mark_completed: markCompleted
       };
+      
+      console.log("Attendance Payload:", data);
+      
+      if (!data.attendance.length) {
+        toast.error('No students in list to mark');
+        setIsSubmitting(false);
+        return;
+      }
+
       await attendanceService.mark(data);
-      toast.success(isEditMode ? 'Attendance updated successfully!' : 'Attendance marked successfully!');
+      toast.success(isEditMode ? 'Attendance updated successfully!' : 'Attendance saved successfully!');
+      
+      // Reset after success if needed or navigate
       setMode('view');
       setFilters(f => ({ ...f, subject_id: String(subject_id), date: date_val }));
-    } catch (err) {
-      toast.error('Failed to save attendance');
+    } catch (err: any) {
+      console.error("Mark Attendance Error:", err);
+      toast.error(err.response?.data?.error || 'Failed to save attendance');
     } finally {
       setIsSubmitting(false);
     }

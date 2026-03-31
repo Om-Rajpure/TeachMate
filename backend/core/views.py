@@ -581,14 +581,21 @@ class AttendanceViewSet(viewsets.ModelViewSet):
         results = []
         try:
             for entry in attendance_data:
-                obj, _ = Attendance.objects.update_or_create(
-                    student_id=entry['student_id'],
+                student_id = entry['student_id']
+                status_val = entry['status']
+                
+                print(f"DEBUG: Saving attendance for: {student_id} - status: {status_val}")
+                
+                obj, created = Attendance.objects.update_or_create(
+                    student_id=student_id,
                     subject_id=subject_id,
-                    lecture_id=lecture_id,
-                    experiment_id=experiment_id,
+                    lecture_plan_id=lecture_id,  # Points to syllabus topic
+                    experiment_id=experiment_id, # Points to experiment title
                     date=date,
-                    defaults={'status': entry['status']}
+                    defaults={'status': status_val}
                 )
+                
+                print(f"DEBUG: Saved successfully - {'created' if created else 'updated'}")
                 results.append(AttendanceSerializer(obj).data)
                 
             if request.data.get('mark_completed'):
@@ -597,9 +604,9 @@ class AttendanceViewSet(viewsets.ModelViewSet):
                 if experiment_id:
                     Experiment.objects.filter(id=experiment_id).update(status='Completed')
                     
-            return Response({'message': 'Attendance marked successfully', 'count': len(results)})
+            return Response({'message': 'Attendance saved successfully', 'count': len(results)})
         except Exception as e:
-            print(f"ERROR finalized attendance: {str(e)}")
+            print(f"ERROR finalizing attendance: {str(e)}")
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     @action(detail=False, methods=['get'])

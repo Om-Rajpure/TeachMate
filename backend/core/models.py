@@ -157,13 +157,14 @@ class Attendance(models.Model):
 
     student = models.ForeignKey(Student, on_delete=models.CASCADE, related_name='attendance_records')
     subject = models.ForeignKey(Subject, on_delete=models.CASCADE, related_name='attendance')
-    lecture = models.ForeignKey(Lecture, on_delete=models.CASCADE, null=True, blank=True, related_name='attendance')
+    lecture_plan = models.ForeignKey(LecturePlan, on_delete=models.CASCADE, null=True, blank=True, related_name='attendance')
     experiment = models.ForeignKey(Experiment, on_delete=models.CASCADE, null=True, blank=True, related_name='attendance')
     date = models.DateField()
     status = models.CharField(max_length=1, choices=STATUS_CHOICES, default='P')
+    marked_at = models.DateTimeField(auto_now_add=True, null=True, blank=True)
 
     class Meta:
-        unique_together = ('student', 'subject', 'lecture', 'experiment', 'date')
+        unique_together = ('student', 'subject', 'lecture_plan', 'experiment', 'date')
 
     def __str__(self):
         return f"{self.student.name} - {self.subject.name} - {self.date}"

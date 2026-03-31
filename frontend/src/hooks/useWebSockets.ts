@@ -9,7 +9,7 @@ interface WebSocketMessage {
 
 export const useWebSockets = (onNotificationReceived?: () => void) => {
   const connect = useCallback(() => {
-    const socket = new WebSocket('ws://localhost:8001/ws/notifications/');
+    const socket = new WebSocket('ws://localhost:8000/ws/notifications/');
 
     socket.onmessage = (event) => {
       // Trigger Toast
