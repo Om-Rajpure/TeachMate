@@ -500,6 +500,66 @@ class AttendanceViewSet(viewsets.ModelViewSet):
     queryset = Attendance.objects.all().order_by('-date')
     serializer_class = AttendanceSerializer
 
+    def list(self, request, *args, **kwargs):
+        from django.db.models import Count, Q
+        
+        queryset = self.get_queryset()
+        
+        # Group by session identifiers
+        sessions = queryset.values(
+            'subject_id', 
+            'subject__name', 
+            'date', 
+            'lecture_plan_id', 
+            'lecture_plan__lecture_number',
+            'lecture_plan__topic_name',
+            'experiment_id',
+            'experiment__experiment_number',
+            'experiment__title'
+        ).annotate(
+            total_students=Count('id'),
+            present_count=Count('id', filter=Q(status='P')),
+            absent_count=Count('id', filter=Q(status='A'))
+        ).order_by('-date', 'subject_id')
+
+        # Attach student lists to each session
+        result = []
+        for session in sessions:
+            # Re-fetch specific students for this session
+            filters = {
+                'subject_id': session['subject_id'],
+                'date': session['date'],
+                'lecture_plan_id': session['lecture_plan_id'],
+                'experiment_id': session['experiment_id']
+            }
+            session_students = Attendance.objects.filter(**filters).select_related('student').order_by('student__subject_links__roll_number')
+            
+            students_list = []
+            for record in session_students:
+                # Find the roll number for this subject/division context
+                # Note: This assumes the student is linked to the subject
+                roll = record.student.subject_links.filter(subject_id=session['subject_id']).first()
+                students_list.append({
+                    'name': record.student.name,
+                    'roll_number': roll.roll_number if roll else None,
+                    'status': record.status
+                })
+
+            result.append({
+                'subject_id': session['subject_id'],
+                'subject_name': session['subject__name'],
+                'date': session['date'].isoformat(),
+                'lecture_number': session['lecture_plan__lecture_number'],
+                'topic': session['lecture_plan__topic_name'] or session['experiment__title'] or "General Session",
+                'type': 'PRACTICAL' if session['experiment_id'] else 'THEORY',
+                'total_students': session['total_students'],
+                'present_count': session['present_count'],
+                'absent_count': session['absent_count'],
+                'students': students_list
+            })
+
+        return Response(result)
+
     def get_queryset(self):
         queryset = Attendance.objects.all().order_by('-date')
         subject_id = self.request.query_params.get('subject_id')
@@ -512,11 +572,11 @@ class AttendanceViewSet(viewsets.ModelViewSet):
         if date:
             queryset = queryset.filter(date=date)
         if division:
-            queryset = queryset.filter(student__division__name=division)
+            queryset = queryset.filter(student__subject_links__division__name=division)
         if batch:
-            queryset = queryset.filter(student__batch__name=batch)
+            queryset = queryset.filter(student__subject_links__batch__name=batch)
         
-        return queryset
+        return queryset.distinct()
 
     @action(detail=False, methods=['get'], url_path='current-class')
     def current_class(self, request):

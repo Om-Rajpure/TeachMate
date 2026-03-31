@@ -9,6 +9,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { attendanceService, subjectService, studentService, divisionService, batchService } from '../services/api';
 import type { Student, Subject, Division, Batch } from '../types';
 import { toast } from 'react-hot-toast';
+import AttendanceRecords from '../components/AttendanceRecords';
 
 const formatDate = (date: Date) => date.toISOString().split('T')[0];
 
@@ -235,11 +236,12 @@ const Attendance = () => {
   };
 
   const fetchRecords = async () => {
-    if (!filters.subject_id) return;
+    // We can fetch all records if subject_id is not selected, 
+    // but the backend refactor focuses on grouped per-session data.
     setLoading(true);
     try {
       const res = await attendanceService.getRecords({
-        subject_id: Number(filters.subject_id),
+        subject_id: filters.subject_id ? Number(filters.subject_id) : undefined as any,
         date: filters.date,
         division: filters.division,
         batch: filters.batch
@@ -767,65 +769,9 @@ const Attendance = () => {
             </div>
 
             {/* Results Content */}
-            {loading ? (
-              <div className="py-32 flex flex-col items-center gap-6">
-                <div className="w-20 h-20 border-8 border-gray-100 border-t-primary rounded-full animate-spin shadow-inner" />
-                <p className="text-[10px] font-black text-text-muted uppercase tracking-widest animate-pulse">Scanning Archives...</p>
-              </div>
-            ) : filters.subject_id ? (
+            {filters.subject_id ? (
               subTab === 'records' ? (
-                /* Records Table UI (Improved) */
-                <div className="bg-white rounded-[3rem] border border-gray-100 overflow-hidden shadow-2xl shadow-primary/5">
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left">
-                      <thead className="bg-white border-b border-gray-100">
-                        <tr>
-                          <th className="px-10 py-6 text-[10px] font-black text-text-muted uppercase tracking-[0.2em]">Student Profile</th>
-                          <th className="px-10 py-6 text-[10px] font-black text-text-muted uppercase tracking-[0.2em]">Log Date</th>
-                          <th className="px-10 py-6 text-[10px] font-black text-text-muted uppercase tracking-[0.2em]">Syllabus Module</th>
-                          <th className="px-10 py-6 text-[10px] font-black text-text-muted uppercase tracking-[0.2em] text-right">Presence</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-gray-50/50">
-                        {records.length > 0 ? records.map((r: any) => (
-                          <tr key={r.id} className="hover:bg-gray-50/50 transition-colors group">
-                            <td className="px-10 py-8">
-                              <div className="flex items-center gap-4">
-                                <div className="w-12 h-12 rounded-2xl bg-gray-100 flex items-center justify-center font-black text-sm text-text-muted transition-transform group-hover:scale-105 group-hover:bg-white group-hover:shadow-md">
-                                  {r.student_name.slice(0, 1).toUpperCase()}
-                                </div>
-                                <div>
-                                   <p className="font-black text-text tracking-tight">{r.student_name}</p>
-                                   <p className="text-[10px] font-bold text-text-muted opacity-60 uppercase">{r.roll_number || 'No Roll'}</p>
-                                </div>
-                              </div>
-                            </td>
-                            <td className="px-10 py-8 text-sm font-black text-text-muted/60">{r.date}</td>
-                            <td className="px-10 py-8">
-                              <div className="flex items-center gap-2">
-                                <BookOpen size={14} className="text-primary/30" />
-                                <p className="text-sm font-bold text-text tracking-tight truncate max-w-[280px]">
-                                  {r.lecture_topic || r.experiment_title || 'General Activity'}
-                                </p>
-                              </div>
-                            </td>
-                            <td className="px-10 py-8 text-right">
-                              <span className={`px-5 py-2 rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-sm ${
-                                r.status === 'P' ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'
-                              }`}>
-                                {r.status === 'P' ? 'Present' : 'Absent'}
-                              </span>
-                            </td>
-                          </tr>
-                        )) : (
-                          <tr>
-                            <td colSpan={4} className="px-10 py-32 text-center text-text-muted font-black italic opacity-30 text-2xl uppercase tracking-widest">No Records Found</td>
-                          </tr>
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
+                <AttendanceRecords records={records} loading={loading} />
               ) : (
                 /* Summary Grid UI (Existing Analytics) */
                 <div className="grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
@@ -848,10 +794,9 @@ const Attendance = () => {
                           <p className="text-[10px] font-black text-text-muted uppercase tracking-[0.2em] opacity-40">Attendance</p>
                         </div>
                       </div>
-                      <div className="space-y-6">
-                        <h4 className="text-xl font-black text-text tracking-tight truncate">{s.name}</h4>
-                        <div className="space-y-3">
-                           <div className="flex items-center justify-between text-[10px] font-black uppercase tracking-widest">
+                      <div className="space-y-4">
+                        <div className="p-4 bg-gray-50/50 rounded-2xl space-y-3 border border-gray-100/50">
+                           <div className="flex justify-between text-[10px] font-black uppercase tracking-widest">
                               <span className="text-text-muted italic opacity-60">{s.present} / {s.total_classes} Ses</span>
                               <span className={s.percentage < 75 ? 'text-rose-500' : 'text-emerald-500'}>
                                 {s.percentage < 75 ? 'At Risk' : 'Healthy'}
