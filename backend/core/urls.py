@@ -7,10 +7,11 @@ from .views import (
     StudentViewSet, AttendanceViewSet, 
     ChapterViewSet, LecturePlanViewSet,
     TheoryMarkViewSet, PracticalMarkViewSet, MarkUploadView, AnalyticsViewSet,
-    NotificationViewSet, ResourceFileViewSet, ExperimentViewSet
+    NotificationViewSet, ResourceFileViewSet, ExperimentViewSet, MarksViewSet
 )
 
 router = DefaultRouter()
+router.register(r'marks', MarksViewSet)
 router.register(r'subjects', SubjectViewSet)
 router.register(r'teachers', TeacherViewSet)
 router.register(r'divisions', DivisionViewSet)

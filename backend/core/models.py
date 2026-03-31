@@ -247,3 +247,36 @@ class ResourceFile(models.Model):
 
     def __str__(self):
         return f"{self.subject.name} - {self.title}"
+class Marks(models.Model):
+    student = models.ForeignKey(Student, on_delete=models.CASCADE, related_name='marks')
+    subject = models.ForeignKey(Subject, on_delete=models.CASCADE, related_name='marks')
+    marks_data = models.JSONField(default=dict)
+    experiments_total = models.FloatField(default=0)
+    assignments_avg = models.FloatField(default=0)
+    overall_total = models.FloatField(default=0)
+
+    class Meta:
+        unique_together = ('student', 'subject')
+
+    def save(self, *args, **kwargs):
+        if self.subject.subject_type == 'theory':
+            ia1 = float(self.marks_data.get('ia1', 0))
+            ia2 = float(self.marks_data.get('ia2', 0))
+            avg = (ia1 + ia2) / 2
+            self.marks_data['average'] = avg
+            self.overall_total = avg
+        elif self.subject.subject_type == 'practical':
+            exps = self.marks_data.get('experiments', {})
+            self.experiments_total = sum(float(v) for v in exps.values())
+            
+            assigns = self.marks_data.get('assignments', {})
+            a1 = float(assigns.get('assignment_1', 0))
+            a2 = float(assigns.get('assignment_2', 0))
+            
+            self.assignments_avg = (a1 + a2) / 2
+            self.overall_total = self.experiments_total + a1 + a2
+            
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.student.name} - {self.subject.name} Marks"

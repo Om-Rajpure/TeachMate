@@ -168,6 +168,12 @@ export const markService = {
   upload: (data: FormData) => api.post('/marks/upload/', data, {
     headers: { 'Content-Type': 'multipart/form-data' }
   }),
+
+  // Dynamic Marks Engine
+  getConfig: (subjectId: number) => api.get(`/marks/config/${subjectId}/`),
+  save: (data: { subject_id: number; marks: { student_id: number; marks_data: any }[] }) => 
+    api.post('/marks/save/', data),
+  list: (subjectId: number) => api.get<any[]>(`/marks/list/${subjectId}/`),
 };
 
 export const analyticsService = {

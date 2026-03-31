@@ -2,7 +2,7 @@ from rest_framework import serializers
 from .models import (
     Subject, Teacher, Division, Batch, Timetable, Lecture, 
     Student, StudentSubject, Attendance, Chapter, LecturePlan,
-    Notification, ResourceFile, Experiment, TheoryMark, PracticalMark
+    Notification, ResourceFile, Experiment, TheoryMark, PracticalMark, Marks
 )
 
 class ExperimentSerializer(serializers.ModelSerializer):
@@ -177,6 +177,17 @@ class PracticalMarkSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = PracticalMark
+        fields = '__all__'
+
+    def get_roll_number(self, obj):
+        link = StudentSubject.objects.filter(student=obj.student, subject=obj.subject).first()
+        return link.roll_number if link else None
+class MarksSerializer(serializers.ModelSerializer):
+    student_name = serializers.CharField(source='student.name', read_only=True)
+    roll_number = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Marks
         fields = '__all__'
 
     def get_roll_number(self, obj):

@@ -1,10 +1,9 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { 
-  Users, Filter, GraduationCap, History, CheckCircle2,
-  AlertCircle, ChevronRight, BookOpen, CalendarDays, 
-  Loader2, AlertTriangle, Save, Trophy, Target, 
+  Users, GraduationCap, CheckCircle2,
+  Loader2, AlertTriangle, Save, 
   Upload, Download, BarChart3, PieChart, TrendingUp,
-  UserPlus, FileSpreadsheet
+  FileSpreadsheet, Trophy
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
@@ -30,25 +29,15 @@ const Marks = () => {
     subject_id: '',
     division_id: '',
     batch_id: '',
-    exam_type: 'IA1',
-    max_marks: 20,
-    pass_marks: 8,
-    year: '2023-24',
-    branch: 'Computer'
   });
 
-  // Data State
+  // Dynamic Engine State
+  const [marksConfig, setMarksConfig] = useState<any>(null);
+  const [marksEntries, setMarksEntries] = useState<Record<number, any>>({});
   const [students, setStudents] = useState<Student[]>([]);
-  const [theoryMarks, setTheoryMarks] = useState<Record<number, number>>({});
-  const [pracMarks, setPracMarks] = useState<Record<number, any>>({});
   const [analytics, setAnalytics] = useState<any>(null);
 
-  const selectedSubject = useMemo(() => 
-    subjects.find(s => s.id === Number(selection.subject_id)),
-    [subjects, selection.subject_id]
-  );
-
-  const isTheory = selectedSubject?.subject_type === 'Theory';
+  const isTheory = marksConfig?.type === 'theory';
 
   useEffect(() => {
     loadMetadata();
@@ -56,6 +45,7 @@ const Marks = () => {
 
   const loadMetadata = async () => {
     try {
+      setLoading(true);
       const [subs, divs, bats] = await Promise.all([
         subjectService.getAll(),
         divisionService.getAll(),
@@ -75,29 +65,43 @@ const Marks = () => {
     if (!selection.subject_id || !selection.division_id) return;
     setLoading(true);
     try {
-      const res = await studentService.getAll(
-        Number(selection.subject_id), 
-        Number(selection.division_id),
-        selection.batch_id ? Number(selection.batch_id) : undefined
-      );
-      setStudents(res.data);
-      
-      // Initialize marks maps
-      if (isTheory) {
-        const initialMarks: Record<number, number> = {};
-        res.data.forEach(s => initialMarks[s.id] = 0);
-        setTheoryMarks(initialMarks);
-      } else {
-        const initialMarks: Record<number, any> = {};
-        res.data.forEach(s => initialMarks[s.id] = {
-          part_a: 0, part_b: 0, part_c: 0, part_d: 0,
-          assign1_p1: 0, assign1_p2: 0, assign1_p3: 0,
-          assign2_p1: 0, assign2_p2: 0, assign2_p3: 0
-        });
-        setPracMarks(initialMarks);
-      }
+      const [studentsRes, configRes, marksRes] = await Promise.all([
+        studentService.getAll(
+          Number(selection.subject_id), 
+          Number(selection.division_id),
+          selection.batch_id ? Number(selection.batch_id) : undefined
+        ),
+        markService.getConfig(Number(selection.subject_id)),
+        markService.list(Number(selection.subject_id))
+      ]);
+
+      setStudents(studentsRes.data);
+      setMarksConfig(configRes.data);
+
+      // Map existing marks
+      const initialMarks: Record<number, any> = {};
+      studentsRes.data.forEach(s => {
+        const existing = marksRes.data.find((m: any) => m.student === s.id);
+        if (existing) {
+          initialMarks[s.id] = existing.marks_data;
+        } else {
+          if (configRes.data.type === 'theory') {
+            initialMarks[s.id] = { ia1: 0, ia2: 0, average: 0 };
+          } else {
+            const exps: Record<string, number> = {};
+            for (let i = 1; i <= configRes.data.experiments; i++) {
+              exps[`exp_${i}`] = 0;
+            }
+            initialMarks[s.id] = { 
+              experiments: exps, 
+              assignments: { assignment_1: 0, assignment_2: 0 } 
+            };
+          }
+        }
+      });
+      setMarksEntries(initialMarks);
     } catch (err) {
-      toast.error('Failed to load students');
+      toast.error('Failed to load marks configuration');
     } finally {
       setLoading(false);
     }
@@ -121,48 +125,58 @@ const Marks = () => {
     if (tab === 'analytics') fetchAnalytics();
   }, [tab, selection.subject_id]);
 
-  const handleTheoryChange = (studentId: number, value: string) => {
-    setTheoryMarks(prev => ({ ...prev, [studentId]: parseFloat(value) || 0 }));
+  const handleMarkChange = (studentId: number, block: string, field: string | null, value: string) => {
+    setMarksEntries(prev => {
+      const studentMarks = { ...prev[studentId] };
+      const numVal = parseFloat(value) || 0;
+
+      if (marksConfig.type === 'theory') {
+        studentMarks[block] = numVal;
+        studentMarks.average = (studentMarks.ia1 + studentMarks.ia2) / 2;
+      } else {
+        if (block === 'experiments' && field) {
+          studentMarks.experiments = { ...studentMarks.experiments, [field]: numVal };
+        } else if (block === 'assignments' && field) {
+          studentMarks.assignments = { ...studentMarks.assignments, [field]: numVal };
+        }
+      }
+      return { ...prev, [studentId]: studentMarks };
+    });
   };
 
-  const handlePracChange = (studentId: number, field: string, value: string) => {
-    setPracMarks(prev => ({
-      ...prev,
-      [studentId]: { ...prev[studentId], [field]: parseFloat(value) || 0 }
-    }));
+  const calculateTotals = (studentId: number) => {
+    const m = marksEntries[studentId];
+    if (!m) return { expTotal: 0, assignAvg: 0, overall: 0 };
+
+    if (marksConfig?.type === 'theory') {
+      return { expTotal: 0, assignAvg: 0, overall: Number(m.average) || 0 };
+    }
+
+    const expTotal = Object.values(m.experiments || {}).reduce((a: number, b: any) => a + (Number(b) || 0), 0);
+    const a1 = Number(m.assignments?.assignment_1) || 0;
+    const a2 = Number(m.assignments?.assignment_2) || 0;
+    const assignAvg = (a1 + a2) / 2;
+    const overall = expTotal + a1 + a2;
+
+    return { expTotal, assignAvg, overall };
   };
 
   const handleSave = async () => {
+    if (!selection.subject_id) return;
     setIsSubmitting(true);
     try {
-      if (isTheory) {
-        const marks = Object.entries(theoryMarks).map(([id, val]) => ({
+      const payload = {
+        subject_id: Number(selection.subject_id),
+        marks: Object.entries(marksEntries).map(([id, marks_data]) => ({
           student_id: Number(id),
-          marks_obtained: val
-        }));
-        await markService.saveTheory({
-          ...selection,
-          subject_id: Number(selection.subject_id),
-          division_id: Number(selection.division_id),
-          date: new Date().toISOString().split('T')[0],
-          marks
-        });
-      } else {
-        const marks = Object.entries(pracMarks).map(([id, val]) => ({
-          student_id: Number(id),
-          ...val
-        }));
-        await markService.savePractical({
-          subject_id: Number(selection.subject_id),
-          division_id: Number(selection.division_id),
-          batch_id: selection.batch_id ? Number(selection.batch_id) : undefined,
-          marks
-        });
-      }
-      toast.success('Marks updated successfully!');
+          marks_data
+        }))
+      };
+      await markService.save(payload);
+      toast.success('All marks synchronized successfully!');
       fetchAnalytics();
     } catch (err: any) {
-      toast.error(err.response?.data?.error || 'Failed to save marks');
+      toast.error(err.response?.data?.error || 'Failed to sync marks');
     } finally {
       setIsSubmitting(false);
     }
@@ -224,7 +238,7 @@ const Marks = () => {
           </select>
         </div>
 
-        {!isTheory && (
+        {marksConfig?.type === 'practical' && (
           <div className="space-y-2">
             <label className="text-[10px] font-black text-text-muted uppercase tracking-widest ml-1">Batch</label>
             <select 
@@ -237,36 +251,15 @@ const Marks = () => {
             </select>
           </div>
         )}
-
-        {isTheory && (
-          <>
-            <div className="space-y-2">
-              <label className="text-[10px] font-black text-text-muted uppercase tracking-widest ml-1">Exam</label>
-              <select 
-                value={selection.exam_type}
-                onChange={(e) => setSelection({...selection, exam_type: e.target.value})}
-                className="w-full px-5 py-3.5 bg-gray-50 border border-transparent focus:bg-white focus:border-primary/20 rounded-xl outline-none font-bold text-text cursor-pointer"
-              >
-                <option value="IA1">IA 1</option>
-                <option value="IA2">IA 2</option>
-                <option value="EndSem">End Sem</option>
-              </select>
-            </div>
-            <div className="space-y-2">
-              <label className="text-[10px] font-black text-text-muted uppercase tracking-widest ml-1">Max Marks</label>
-              <input 
-                type="number"
-                value={selection.max_marks}
-                onChange={(e) => setSelection({...selection, max_marks: Number(e.target.value)})}
-                className="w-full px-5 py-3.5 bg-gray-50 border border-transparent focus:bg-white focus:border-primary/20 rounded-xl outline-none font-black text-text"
-              />
-            </div>
-          </>
-        )}
       </div>
 
       <AnimatePresence mode="wait">
-        {tab === 'enter' ? (
+        {loading ? (
+          <div className="flex flex-col items-center justify-center py-32 space-y-4">
+            <Loader2 className="w-12 h-12 text-primary animate-spin" />
+            <p className="text-text-muted font-bold animate-pulse">Loading engine configuration...</p>
+          </div>
+        ) : tab === 'enter' ? (
           <motion.div 
             key="enter"
             initial={{ opacity: 0, y: 20 }}
@@ -288,90 +281,111 @@ const Marks = () => {
             </div>
 
             {/* Entry Table */}
-            <div className="bg-white rounded-[2.5rem] border border-gray-100 shadow-xl overflow-hidden">
+            <div className="bg-white rounded-[2.5rem] border border-gray-100 shadow-xl overflow-hidden relative">
               <div className="overflow-x-auto">
-                <table className="w-full">
+                <table className="w-full border-collapse">
                   <thead>
                     <tr className="bg-gray-50/50 border-b border-gray-100">
-                      <th className="px-8 py-5 text-left text-[10px] font-black text-text-muted uppercase tracking-widest">Roll No</th>
-                      <th className="px-8 py-5 text-left text-[10px] font-black text-text-muted uppercase tracking-widest">Student Name</th>
-                      {isTheory ? (
-                        <th className="px-8 py-5 text-center text-[10px] font-black text-text-muted uppercase tracking-widest">Score Obtained</th>
+                      <th className="px-8 py-5 text-left text-[10px] font-black text-text-muted uppercase tracking-widest sticky left-0 bg-white z-20 min-w-[100px]">Roll No</th>
+                      <th className="px-8 py-5 text-left text-[10px) font-black text-text-muted uppercase tracking-widest sticky left-[100px] bg-white z-20 min-w-[200px] border-r border-gray-100">Student Name</th>
+                      
+                      {marksConfig?.type === 'theory' ? (
+                        <>
+                          <th className="px-8 py-5 text-center text-[10px] font-black text-text-muted uppercase tracking-widest">IA-1</th>
+                          <th className="px-8 py-5 text-center text-[10px] font-black text-text-muted uppercase tracking-widest">IA-2</th>
+                          <th className="px-8 py-5 text-center text-[10px] font-black text-primary uppercase tracking-widest sticky right-0 bg-white z-20 border-l border-gray-100 shadow-[-10px_0_15px_-3px_rgba(0,0,0,0.05)]">Average</th>
+                        </>
                       ) : (
                         <>
-                          <th className="px-4 py-5 text-center text-[10px] font-black text-text-muted uppercase tracking-widest">Exp (A-D)</th>
-                          <th className="px-4 py-5 text-center text-[10px] font-black text-text-muted uppercase tracking-widest">Assign 1</th>
-                          <th className="px-4 py-5 text-center text-[10px] font-black text-text-muted uppercase tracking-widest">Assign 2</th>
-                          <th className="px-8 py-5 text-center text-[10px] font-black text-text-muted uppercase tracking-widest">Total</th>
+                          {Array.from({ length: marksConfig?.experiments || 0 }).map((_, i) => (
+                            <th key={i} className="px-4 py-5 text-center text-[10px] font-black text-text-muted uppercase tracking-widest whitespace-nowrap">EXP-{i+1}</th>
+                          ))}
+                          <th className="px-8 py-5 text-center text-[10px] font-black text-primary uppercase tracking-widest bg-gray-50 border-x border-gray-100 min-w-[120px]">EXP TOTAL</th>
+                          <th className="px-4 py-5 text-center text-[10px] font-black text-emerald-600 uppercase tracking-widest border-l border-emerald-100 bg-emerald-50/30">A1</th>
+                          <th className="px-4 py-5 text-center text-[10px) font-black text-emerald-600 uppercase tracking-widest bg-emerald-50/30">A2</th>
+                          <th className="px-8 py-5 text-center text-[10px] font-black text-emerald-700 uppercase tracking-widest bg-emerald-50 border-x border-emerald-100 min-w-[120px]">AVG (Assign)</th>
+                          <th className="px-8 py-5 text-center text-[10px] font-black text-primary uppercase tracking-widest sticky right-0 bg-white z-20 border-l border-gray-200 shadow-[-10px_0_15px_-3px_rgba(0,0,0,0.1)] min-w-[140px]">OVERALL TOTAL</th>
                         </>
                       )}
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-50">
-                    {students.map((student) => (
-                      <tr key={student.id} className="hover:bg-gray-50/50 transition-colors">
-                        <td className="px-8 py-6 font-black text-primary">{student.roll_number || 'N/A'}</td>
-                        <td className="px-8 py-6 font-bold text-text">{student.name}</td>
-                        {isTheory ? (
-                          <td className="px-8 py-6 flex justify-center">
-                            <div className="relative w-24">
-                              <input 
-                                type="number"
-                                value={theoryMarks[student.id]}
-                                onChange={(e) => handleTheoryChange(student.id, e.target.value)}
-                                className="w-full px-4 py-3 bg-gray-100 border-2 border-transparent focus:bg-white focus:border-primary/20 rounded-xl outline-none font-black text-center"
-                              />
-                            </div>
-                          </td>
-                        ) : (
-                          <>
-                            <td className="px-4 py-6">
-                              <div className="flex gap-1 justify-center">
-                                {['part_a', 'part_b', 'part_c', 'part_d'].map(f => (
-                                  <input 
-                                    key={f}
-                                    type="number"
-                                    placeholder={f.slice(-1).toUpperCase()}
-                                    value={pracMarks[student.id]?.[f]}
-                                    onChange={(e) => handlePracChange(student.id, f, e.target.value)}
-                                    className="w-10 h-10 bg-gray-100 rounded-lg text-center font-black text-[10px] outline-none focus:bg-white focus:ring-1 focus:ring-primary/20"
-                                  />
-                                ))}
-                              </div>
-                            </td>
-                            <td className="px-4 py-6">
-                              <div className="flex gap-1 justify-center">
-                                {[1, 2, 3].map(i => (
-                                  <input 
-                                    key={i}
-                                    type="number"
-                                    value={pracMarks[student.id]?.[`assign1_p${i}`]}
-                                    onChange={(e) => handlePracChange(student.id, `assign1_p${i}`, e.target.value)}
-                                    className="w-10 h-10 bg-gray-100 rounded-lg text-center font-black text-[10px] outline-none focus:bg-white"
-                                  />
-                                ))}
-                              </div>
-                            </td>
-                            <td className="px-4 py-6">
-                              <div className="flex gap-1 justify-center">
-                                {[1, 2, 3].map(i => (
-                                  <input 
-                                    key={i}
-                                    type="number"
-                                    value={pracMarks[student.id]?.[`assign2_p${i}`]}
-                                    onChange={(e) => handlePracChange(student.id, `assign2_p${i}`, e.target.value)}
-                                    className="w-10 h-10 bg-gray-100 rounded-lg text-center font-black text-[10px] outline-none focus:bg-white"
-                                  />
-                                ))}
-                              </div>
-                            </td>
-                            <td className="px-8 py-6 text-center font-black text-primary">
-                              {Object.values(pracMarks[student.id] || {}).reduce((a: any, b: any) => a + (parseFloat(b) || 0), 0) as number}
-                            </td>
-                          </>
-                        )}
-                      </tr>
-                    ))}
+                    {students.map((student) => {
+                      const totals = calculateTotals(student.id);
+                      const m = marksEntries[student.id] || {};
+                      
+                      return (
+                        <tr key={student.id} className="hover:bg-gray-50/50 transition-colors group">
+                          <td className="px-8 py-6 font-black text-primary sticky left-0 bg-white z-10 group-hover:bg-gray-50">{student.roll_number || 'N/A'}</td>
+                          <td className="px-8 py-6 font-bold text-text sticky left-[100px] bg-white z-10 border-r border-gray-100 group-hover:bg-gray-50">{student.name}</td>
+                          
+                          {marksConfig?.type === 'theory' ? (
+                            <>
+                              <td className="px-8 py-6 text-center">
+                                <input 
+                                  type="number"
+                                  value={m.ia1 || 0}
+                                  onChange={(e) => handleMarkChange(student.id, 'ia1', null, e.target.value)}
+                                  className="w-20 px-3 py-2 bg-gray-50 rounded-xl text-center font-black outline-none focus:bg-white focus:ring-2 focus:ring-primary/20 transition-all"
+                                />
+                              </td>
+                              <td className="px-8 py-6 text-center">
+                                <input 
+                                  type="number"
+                                  value={m.ia2 || 0}
+                                  onChange={(e) => handleMarkChange(student.id, 'ia2', null, e.target.value)}
+                                  className="w-20 px-3 py-2 bg-gray-50 rounded-xl text-center font-black outline-none focus:bg-white focus:ring-2 focus:ring-primary/20 transition-all"
+                                />
+                              </td>
+                              <td className="px-8 py-6 text-center font-black text-primary sticky right-0 bg-white z-10 shadow-[-10px_0_15px_-3px_rgba(0,0,0,0.05)] group-hover:bg-gray-50">
+                                {totals.overall.toFixed(1)}
+                              </td>
+                            </>
+                          ) : (
+                            <>
+                              {Array.from({ length: marksConfig?.experiments || 0 }).map((_, i) => {
+                                const expKey = `exp_${i+1}`;
+                                return (
+                                  <td key={i} className="px-4 py-6 text-center">
+                                    <input 
+                                      type="number"
+                                      value={m.experiments?.[expKey] || 0}
+                                      onChange={(e) => handleMarkChange(student.id, 'experiments', expKey, e.target.value)}
+                                      className="w-14 h-14 bg-gray-50 rounded-2xl text-center font-black text-sm outline-none focus:bg-white focus:ring-2 focus:ring-primary/20 transition-all"
+                                    />
+                                  </td>
+                                );
+                              })}
+                              <td className="px-8 py-6 text-center font-black text-primary bg-gray-50/50 border-x border-gray-100">
+                                {totals.expTotal}
+                              </td>
+                              <td className="px-4 py-6 text-center bg-emerald-50/20 border-l border-emerald-100">
+                                <input 
+                                  type="number"
+                                  value={m.assignments?.assignment_1 || 0}
+                                  onChange={(e) => handleMarkChange(student.id, 'assignments', 'assignment_1', e.target.value)}
+                                  className="w-14 h-14 bg-white border border-emerald-100 rounded-2xl text-center font-black text-sm outline-none focus:ring-2 focus:ring-emerald-200 transition-all"
+                                />
+                              </td>
+                              <td className="px-4 py-6 text-center bg-emerald-50/20">
+                                <input 
+                                  type="number"
+                                  value={m.assignments?.assignment_2 || 0}
+                                  onChange={(e) => handleMarkChange(student.id, 'assignments', 'assignment_2', e.target.value)}
+                                  className="w-14 h-14 bg-white border border-emerald-100 rounded-2xl text-center font-black text-sm outline-none focus:ring-2 focus:ring-emerald-200 transition-all"
+                                />
+                              </td>
+                              <td className="px-8 py-6 text-center font-black text-emerald-700 bg-emerald-50/50 border-x border-emerald-100">
+                                {totals.assignAvg.toFixed(1)}
+                              </td>
+                              <td className="px-8 py-6 text-center font-bold text-lg text-primary sticky right-0 bg-white z-10 shadow-[-10px_0_15px_-3px_rgba(0,0,0,0.1)] group-hover:bg-gray-50 border-l border-gray-100">
+                                {totals.overall}
+                              </td>
+                            </>
+                          )}
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -389,8 +403,8 @@ const Marks = () => {
                     <CheckCircle2 size={24} />
                   </div>
                   <div>
-                    <p className="text-[10px] font-black uppercase tracking-[0.3em] text-white/50">Changes Pending</p>
-                    <p className="text-white font-black">{Object.keys(isTheory ? theoryMarks : pracMarks).length} total records</p>
+                    <p className="text-[10px] font-black uppercase tracking-[0.3em] text-white/50">Engine Status</p>
+                    <p className="text-white font-black">Syncing for {students.length} students</p>
                   </div>
                 </div>
                 <button 
@@ -399,7 +413,7 @@ const Marks = () => {
                   className="px-10 py-4 bg-primary text-white rounded-[1.5rem] font-bold shadow-xl shadow-primary/30 flex items-center gap-2 hover:bg-primary-dark transition-all disabled:opacity-50"
                 >
                   {isSubmitting ? <Loader2 className="animate-spin" /> : <Save size={18} />}
-                  Commmit All Marks
+                  Synchronize All Records
                 </button>
               </motion.div>
             </div>
@@ -505,16 +519,10 @@ const Marks = () => {
   );
 };
 
-const MarkUploadModal = ({ onClose, selection, subjects, divisions }: any) => {
+const MarkUploadModal = ({ onClose, selection }: any) => {
   const [file, setFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
-  const [config, setConfig] = useState({
-    subject_id: selection.subject_id,
-    division_id: selection.division_id,
-    exam_type: selection.exam_type,
-    max_marks: selection.max_marks,
-    mark_type: 'theory'
-  });
+  const [examType, setExamType] = useState('IA1');
 
   const handleUpload = async () => {
     if (!file) return;
@@ -522,14 +530,13 @@ const MarkUploadModal = ({ onClose, selection, subjects, divisions }: any) => {
     try {
       const formData = new FormData();
       formData.append('file', file);
-      formData.append('subject_id', config.subject_id);
-      formData.append('division_id', config.division_id);
-      formData.append('exam_type', config.exam_type);
-      formData.append('max_marks', config.max_marks.toString());
-      formData.append('mark_type', config.mark_type);
+      formData.append('subject_id', selection.subject_id);
+      formData.append('division_id', selection.division_id);
+      formData.append('exam_type', examType);
+      formData.append('mark_type', 'theory'); // Fallback for old bulk logic
 
       await markService.upload(formData);
-      toast.success('File processed successfully!');
+      toast.success('File processed effectively!');
       onClose();
     } catch (err: any) {
       toast.error(err.response?.data?.error || 'Upload failed');
@@ -555,27 +562,18 @@ const MarkUploadModal = ({ onClose, selection, subjects, divisions }: any) => {
           </button>
         </div>
 
-        <div className="grid grid-cols-2 gap-6">
-           <div className="space-y-2">
-             <label className="text-[10px] font-black text-text-muted uppercase tracking-widest ml-1">Type</label>
-             <select 
-               value={config.mark_type}
-               onChange={(e) => setConfig({...config, mark_type: e.target.value})}
-               className="w-full px-5 py-3.5 bg-gray-50 rounded-xl outline-none font-bold"
-             >
-               <option value="theory">Theory Marks</option>
-               <option value="practical">Practical Records</option>
-             </select>
-           </div>
-           <div className="space-y-2">
-             <label className="text-[10px] font-black text-text-muted uppercase tracking-widest ml-1">Subject</label>
-             <select 
-               value={config.subject_id}
-               className="w-full px-5 py-3.5 bg-gray-50 rounded-xl outline-none font-bold opacity-50 cursor-not-allowed"
-               disabled
-             >
-               {subjects.map((s: any) => <option key={s.id} value={s.id}>{s.name}</option>)}
-             </select>
+        <div className="space-y-4">
+           <label className="text-[10px] font-black text-text-muted uppercase tracking-widest ml-1">Select Exam (For Theory)</label>
+           <div className="flex gap-4">
+             {['IA1', 'IA2', 'EndSem'].map(type => (
+               <button 
+                 key={type}
+                 onClick={() => setExamType(type)}
+                 className={`flex-1 py-3 rounded-xl font-bold border-2 transition-all ${examType === type ? 'bg-primary border-primary text-white' : 'border-gray-100 text-text-muted'}`}
+               >
+                 {type}
+               </button>
+             ))}
            </div>
         </div>
 

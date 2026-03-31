@@ -6,7 +6,7 @@ from django.shortcuts import get_object_or_404
 from .models import (
     Subject, Teacher, Division, Batch, Timetable, Lecture, Student, StudentSubject,
     Attendance, Chapter, LecturePlan,
-    Notification, ResourceFile, Experiment, TheoryMark, PracticalMark
+    Notification, ResourceFile, Experiment, TheoryMark, PracticalMark, Marks
 )
 from .serializers import (
     SubjectSerializer, TeacherSerializer, DivisionSerializer, 
@@ -14,7 +14,7 @@ from .serializers import (
     StudentSerializer, AttendanceSerializer, 
     ChapterSerializer, LecturePlanSerializer,
     NotificationSerializer, ResourceFileSerializer,
-    ExperimentSerializer, TheoryMarkSerializer, PracticalMarkSerializer
+    ExperimentSerializer, TheoryMarkSerializer, PracticalMarkSerializer, MarksSerializer
 )
 from .utils import TimetableParser
 import os
@@ -1226,3 +1226,49 @@ class AnalyticsViewSet(viewsets.ViewSet):
         if percentage >= 60: return 'C'
         if percentage >= 40: return 'D'
         return 'F'
+class MarksViewSet(viewsets.ModelViewSet):
+    queryset = Marks.objects.all()
+    serializer_class = MarksSerializer
+
+    @action(detail=False, methods=['get'], url_path='config/(?P<subject_id>[^/.]+)')
+    def config(self, request, subject_id=None):
+        subject = get_object_or_404(Subject, id=subject_id)
+        if subject.subject_type == 'theory':
+            return Response({
+                "type": "theory",
+                "fields": ["ia1", "ia2"]
+            })
+        else:
+            exp_count = Experiment.objects.filter(subject=subject).count()
+            return Response({
+                "type": "practical",
+                "experiments": exp_count,
+                "fields": ["assignment_1", "assignment_2"]
+            })
+
+    @action(detail=False, methods=['post'], url_path='save')
+    def save_marks(self, request):
+        subject_id = request.data.get('subject_id')
+        marks_data_list = request.data.get('marks', [])
+
+        if not subject_id:
+            return Response({'error': 'subject_id is required'}, status=status.HTTP_400_BAD_REQUEST)
+
+        results = []
+        for entry in marks_data_list:
+            student_id = entry.get('student_id')
+            marks_data = entry.get('marks_data', {})
+            
+            obj, created = Marks.objects.update_or_create(
+                student_id=student_id,
+                subject_id=subject_id,
+                defaults={'marks_data': marks_data}
+            )
+            results.append(MarksSerializer(obj).data)
+            
+        return Response(results, status=status.HTTP_201_CREATED)
+
+    @action(detail=False, methods=['get'], url_path='list/(?P<subject_id>[^/.]+)')
+    def list_by_subject(self, request, subject_id=None):
+        marks = Marks.objects.filter(subject_id=subject_id)
+        return Response(MarksSerializer(marks, many=True).data)
