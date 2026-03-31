@@ -37,7 +37,6 @@ const Marks = () => {
   const [students, setStudents] = useState<Student[]>([]);
   const [analytics, setAnalytics] = useState<any>(null);
 
-  const isTheory = marksConfig?.type === 'theory';
 
   useEffect(() => {
     loadMetadata();
@@ -88,13 +87,14 @@ const Marks = () => {
           if (configRes.data.type === 'theory') {
             initialMarks[s.id] = { ia1: 0, ia2: 0, average: 0 };
           } else {
-            const exps: Record<string, number> = {};
+            const exps: Record<string, any> = {};
             for (let i = 1; i <= configRes.data.experiments; i++) {
-              exps[`exp_${i}`] = 0;
+              exps[`exp_${i}`] = { a: 0, b: 0, c: 0, d: 0 };
             }
             initialMarks[s.id] = { 
               experiments: exps, 
-              assignments: { assignment_1: 0, assignment_2: 0 } 
+              assignments: { assignment_1: 0, assignment_2: 0 },
+              mini_project: 0
             };
           }
         }
@@ -125,19 +125,24 @@ const Marks = () => {
     if (tab === 'analytics') fetchAnalytics();
   }, [tab, selection.subject_id]);
 
-  const handleMarkChange = (studentId: number, block: string, field: string | null, value: string) => {
+  const handleMarkChange = (studentId: number, block: string, field: string | null, value: string, part?: string) => {
     setMarksEntries(prev => {
-      const studentMarks = { ...prev[studentId] };
+      const studentMarks = JSON.parse(JSON.stringify(prev[studentId] || {}));
       const numVal = parseFloat(value) || 0;
 
       if (marksConfig.type === 'theory') {
         studentMarks[block] = numVal;
-        studentMarks.average = (studentMarks.ia1 + studentMarks.ia2) / 2;
+        studentMarks.average = ((studentMarks.ia1 || 0) + (studentMarks.ia2 || 0)) / 2;
       } else {
-        if (block === 'experiments' && field) {
-          studentMarks.experiments = { ...studentMarks.experiments, [field]: numVal };
+        if (block === 'experiments' && field && part) {
+          if (!studentMarks.experiments) studentMarks.experiments = {};
+          if (!studentMarks.experiments[field]) studentMarks.experiments[field] = { a: 0, b: 0, c: 0, d: 0 };
+          studentMarks.experiments[field][part] = numVal;
         } else if (block === 'assignments' && field) {
-          studentMarks.assignments = { ...studentMarks.assignments, [field]: numVal };
+          if (!studentMarks.assignments) studentMarks.assignments = {};
+          studentMarks.assignments[field] = numVal;
+        } else if (block === 'mini_project') {
+          studentMarks.mini_project = numVal;
         }
       }
       return { ...prev, [studentId]: studentMarks };
@@ -146,19 +151,38 @@ const Marks = () => {
 
   const calculateTotals = (studentId: number) => {
     const m = marksEntries[studentId];
-    if (!m) return { expTotal: 0, assignAvg: 0, overall: 0 };
+    if (!m) return { expTotal: 0, assignAvg: 0, overall: 0, experiments: {} };
 
     if (marksConfig?.type === 'theory') {
-      return { expTotal: 0, assignAvg: 0, overall: Number(m.average) || 0 };
+      return { expTotal: 0, assignAvg: 0, overall: Number(m.average) || 0, experiments: {} };
     }
 
-    const expTotal = Object.values(m.experiments || {}).reduce((a: number, b: any) => a + (Number(b) || 0), 0);
+    // Calculate individual experiment totals
+    const expTotals: Record<string, number> = {};
+    let experimentsSum = 0;
+    
+    if (m.experiments) {
+      Object.entries(m.experiments).forEach(([key, parts]: [string, any]) => {
+        const total = (Number(parts.a) || 0) + (Number(parts.b) || 0) + 
+                      (Number(parts.c) || 0) + (Number(parts.d) || 0);
+        expTotals[key] = total;
+        experimentsSum += total;
+      });
+    }
+
     const a1 = Number(m.assignments?.assignment_1) || 0;
     const a2 = Number(m.assignments?.assignment_2) || 0;
     const assignAvg = (a1 + a2) / 2;
-    const overall = expTotal + a1 + a2;
+    const miniProject = Number(m.mini_project) || 0;
+    
+    const overall = experimentsSum + a1 + a2 + miniProject;
 
-    return { expTotal, assignAvg, overall };
+    return { 
+      expTotal: experimentsSum, 
+      assignAvg, 
+      overall, 
+      individualExps: expTotals 
+    };
   };
 
   const handleSave = async () => {
@@ -298,13 +322,31 @@ const Marks = () => {
                       ) : (
                         <>
                           {Array.from({ length: marksConfig?.experiments || 0 }).map((_, i) => (
-                            <th key={i} className="px-4 py-5 text-center text-[10px] font-black text-text-muted uppercase tracking-widest whitespace-nowrap">EXP-{i+1}</th>
+                            <th key={i} className="px-4 py-3 text-center border-x border-gray-100 bg-gray-50/30 min-w-[180px]">
+                              <div className="text-[10px] font-black text-text-muted uppercase tracking-widest mb-1">EXP-{i+1}</div>
+                              <div className="flex justify-around text-[8px] font-black text-text-muted/40 px-2">
+                                <span title="Part A (3)">A</span>
+                                <span title="Part B (4)">B</span>
+                                <span title="Part C (4)">C</span>
+                                <span title="Part D (4)">D</span>
+                                <span className="text-primary/40 italic">TOT</span>
+                              </div>
+                            </th>
                           ))}
-                          <th className="px-8 py-5 text-center text-[10px] font-black text-primary uppercase tracking-widest bg-gray-50 border-x border-gray-100 min-w-[120px]">EXP TOTAL</th>
-                          <th className="px-4 py-5 text-center text-[10px] font-black text-emerald-600 uppercase tracking-widest border-l border-emerald-100 bg-emerald-50/30">A1</th>
-                          <th className="px-4 py-5 text-center text-[10px) font-black text-emerald-600 uppercase tracking-widest bg-emerald-50/30">A2</th>
-                          <th className="px-8 py-5 text-center text-[10px] font-black text-emerald-700 uppercase tracking-widest bg-emerald-50 border-x border-emerald-100 min-w-[120px]">AVG (Assign)</th>
-                          <th className="px-8 py-5 text-center text-[10px] font-black text-primary uppercase tracking-widest sticky right-0 bg-white z-20 border-l border-gray-200 shadow-[-10px_0_15px_-3px_rgba(0,0,0,0.1)] min-w-[140px]">OVERALL TOTAL</th>
+                          <th className="px-8 py-5 text-center text-[10px] font-black text-primary uppercase tracking-widest bg-gray-100/50 border-x border-gray-200 min-w-[120px]">EXP TOTAL</th>
+                          
+                          {marksConfig?.has_assignments && (
+                            <>
+                              <th className="px-4 py-5 text-center text-[10px] font-black text-emerald-600 uppercase tracking-widest border-l border-emerald-100 bg-emerald-50/30">A1</th>
+                              <th className="px-4 py-5 text-center text-[10px] font-black text-emerald-600 uppercase tracking-widest bg-emerald-50/30">A2</th>
+                            </>
+                          )}
+                          
+                          {marksConfig?.has_mini_project && (
+                            <th className="px-6 py-5 text-center text-[10px] font-black text-purple-600 uppercase tracking-widest bg-purple-50/30 border-l border-purple-100">Mini Project</th>
+                          )}
+                          
+                          <th className="px-8 py-5 text-center text-[10px] font-black text-primary uppercase tracking-widest sticky right-0 bg-white z-20 border-l border-gray-200 shadow-[-10px_0_15px_-3px_rgba(0,0,0,0.1)] min-w-[140px]">FINAL TOTAL</th>
                         </>
                       )}
                     </tr>
@@ -345,40 +387,73 @@ const Marks = () => {
                             <>
                               {Array.from({ length: marksConfig?.experiments || 0 }).map((_, i) => {
                                 const expKey = `exp_${i+1}`;
+                                const parts = m.experiments?.[expKey] || { a: 0, b: 0, c: 0, d: 0 };
+                                const expTotal = (totals as any).individualExps?.[expKey] || 0;
+
                                 return (
-                                  <td key={i} className="px-4 py-6 text-center">
-                                    <input 
-                                      type="number"
-                                      value={m.experiments?.[expKey] || 0}
-                                      onChange={(e) => handleMarkChange(student.id, 'experiments', expKey, e.target.value)}
-                                      className="w-14 h-14 bg-gray-50 rounded-2xl text-center font-black text-sm outline-none focus:bg-white focus:ring-2 focus:ring-primary/20 transition-all"
-                                    />
+                                  <td key={i} className="px-2 py-6 border-x border-gray-50 bg-white group-hover:bg-gray-50/30 transition-colors">
+                                    <div className="flex items-center justify-center gap-1.5 px-2">
+                                      {[
+                                        { key: 'a', max: 3, color: 'focus:ring-blue-200' },
+                                        { key: 'b', max: 4, color: 'focus:ring-blue-200' },
+                                        { key: 'c', max: 4, color: 'focus:ring-blue-200' },
+                                        { key: 'd', max: 4, color: 'focus:ring-blue-200' }
+                                      ].map(part => (
+                                        <div key={part.key} className="flex flex-col items-center gap-1">
+                                          <input 
+                                            type="number"
+                                            min="0"
+                                            max={part.max}
+                                            value={parts[part.key as keyof typeof parts]}
+                                            onChange={(e) => handleMarkChange(student.id, 'experiments', expKey, e.target.value, part.key)}
+                                            className={`w-9 h-9 bg-gray-50 rounded-lg text-center font-black text-[11px] outline-none focus:bg-white focus:ring-2 ${part.color} transition-all ${Number(parts[part.key as keyof typeof parts]) > part.max ? 'text-rose-500 bg-rose-50' : ''}`}
+                                          />
+                                        </div>
+                                      ))}
+                                      <div className="w-8 text-center font-black text-[11px] text-primary bg-primary/5 py-2 rounded-lg ml-1">
+                                        {expTotal}
+                                      </div>
+                                    </div>
                                   </td>
                                 );
                               })}
-                              <td className="px-8 py-6 text-center font-black text-primary bg-gray-50/50 border-x border-gray-100">
+                              <td className="px-8 py-6 text-center font-black text-primary bg-gray-100/30 border-x border-gray-200">
                                 {totals.expTotal}
                               </td>
-                              <td className="px-4 py-6 text-center bg-emerald-50/20 border-l border-emerald-100">
-                                <input 
-                                  type="number"
-                                  value={m.assignments?.assignment_1 || 0}
-                                  onChange={(e) => handleMarkChange(student.id, 'assignments', 'assignment_1', e.target.value)}
-                                  className="w-14 h-14 bg-white border border-emerald-100 rounded-2xl text-center font-black text-sm outline-none focus:ring-2 focus:ring-emerald-200 transition-all"
-                                />
-                              </td>
-                              <td className="px-4 py-6 text-center bg-emerald-50/20">
-                                <input 
-                                  type="number"
-                                  value={m.assignments?.assignment_2 || 0}
-                                  onChange={(e) => handleMarkChange(student.id, 'assignments', 'assignment_2', e.target.value)}
-                                  className="w-14 h-14 bg-white border border-emerald-100 rounded-2xl text-center font-black text-sm outline-none focus:ring-2 focus:ring-emerald-200 transition-all"
-                                />
-                              </td>
-                              <td className="px-8 py-6 text-center font-black text-emerald-700 bg-emerald-50/50 border-x border-emerald-100">
-                                {totals.assignAvg.toFixed(1)}
-                              </td>
-                              <td className="px-8 py-6 text-center font-bold text-lg text-primary sticky right-0 bg-white z-10 shadow-[-10px_0_15px_-3px_rgba(0,0,0,0.1)] group-hover:bg-gray-50 border-l border-gray-100">
+                              
+                              {marksConfig?.has_assignments && (
+                                <>
+                                  <td className="px-4 py-6 text-center bg-emerald-50/20 border-l border-emerald-100">
+                                    <input 
+                                      type="number"
+                                      value={m.assignments?.assignment_1 || 0}
+                                      onChange={(e) => handleMarkChange(student.id, 'assignments', 'assignment_1', e.target.value)}
+                                      className="w-14 h-14 bg-white border border-emerald-100 rounded-2xl text-center font-black text-sm outline-none focus:ring-2 focus:ring-emerald-200 transition-all shadow-sm"
+                                    />
+                                  </td>
+                                  <td className="px-4 py-6 text-center bg-emerald-50/20">
+                                    <input 
+                                      type="number"
+                                      value={m.assignments?.assignment_2 || 0}
+                                      onChange={(e) => handleMarkChange(student.id, 'assignments', 'assignment_2', e.target.value)}
+                                      className="w-14 h-14 bg-white border border-emerald-100 rounded-2xl text-center font-black text-sm outline-none focus:ring-2 focus:ring-emerald-200 transition-all shadow-sm"
+                                    />
+                                  </td>
+                                </>
+                              )}
+
+                              {marksConfig?.has_mini_project && (
+                                <td className="px-6 py-6 text-center bg-purple-50/20 border-l border-purple-100">
+                                  <input 
+                                    type="number"
+                                    value={m.mini_project || 0}
+                                    onChange={(e) => handleMarkChange(student.id, 'mini_project', null, e.target.value)}
+                                    className="w-16 h-14 bg-white border border-purple-100 rounded-2xl text-center font-black text-sm outline-none focus:ring-2 focus:ring-purple-200 transition-all shadow-sm"
+                                  />
+                                </td>
+                              )}
+
+                              <td className="px-8 py-6 text-center font-black text-xl text-primary sticky right-0 bg-white z-10 shadow-[-10px_0_15px_-3px_rgba(0,0,0,0.1)] group-hover:bg-gray-50 border-l border-gray-200">
                                 {totals.overall}
                               </td>
                             </>

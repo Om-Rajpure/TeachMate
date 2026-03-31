@@ -134,7 +134,8 @@ export const syllabusService = {
   createLecture: (data: any) => api.post('/syllabus/lecture-plan/commit/', { subject_id: data.subject, entries: [data] }),
   createExperiment: (data: any) => api.post('/syllabus/experiments/commit/', { subject_id: data.subject, entries: [data] }),
   commit: (subjectId: number, entries: any[]) => api.post('/syllabus/lecture-plan/commit/', { subject_id: subjectId, entries }),
-  commitExperiments: (subjectId: number, entries: any[]) => api.post('/syllabus/experiments/commit/', { subject_id: subjectId, entries }),
+  commitExperiments: (subjectId: number, entries: any[], metadata?: { has_assignments?: boolean; has_mini_project?: boolean }) => 
+    api.post('/syllabus/experiments/commit/', { subject_id: subjectId, entries, ...metadata }),
 };
 
 export const markService = {

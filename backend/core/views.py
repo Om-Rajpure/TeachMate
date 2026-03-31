@@ -227,12 +227,17 @@ class ExperimentViewSet(viewsets.ModelViewSet):
     def commit(self, request):
         entries = request.data.get('entries', [])
         subject_id = request.data.get('subject_id')
+        has_assignments = request.data.get('has_assignments', False)
+        has_mini_project = request.data.get('has_mini_project', False)
         
         if not subject_id:
             return Response({'error': 'subject_id is required'}, status=status.HTTP_400_BAD_REQUEST)
         
         try:
             subject = Subject.objects.get(id=subject_id)
+            subject.has_assignments = has_assignments
+            subject.has_mini_project = has_mini_project
+            subject.save()
         except Subject.DoesNotExist:
             return Response({'error': 'Subject not found'}, status=status.HTTP_404_NOT_FOUND)
 
@@ -796,10 +801,11 @@ class LecturePlanViewSet(viewsets.ModelViewSet):
         full_path = os.path.join(settings.MEDIA_ROOT, path)
         try:
             if subject_type == 'practical':
-                entries = TimetableParser.parse_practical(full_path)
+                data = TimetableParser.parse_practical(full_path)
+                return Response(data)
             else:
                 entries = TimetableParser.parse_syllabus(full_path)
-            return Response(entries)
+                return Response(entries)
         except Exception as e:
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         finally:
@@ -1243,7 +1249,14 @@ class MarksViewSet(viewsets.ModelViewSet):
             return Response({
                 "type": "practical",
                 "experiments": exp_count,
-                "fields": ["assignment_1", "assignment_2"]
+                "experiment_structure": {
+                    "a": 3,
+                    "b": 4,
+                    "c": 4,
+                    "d": 4
+                },
+                "has_assignments": subject.has_assignments,
+                "has_mini_project": subject.has_mini_project
             })
 
     @action(detail=False, methods=['post'], url_path='save')

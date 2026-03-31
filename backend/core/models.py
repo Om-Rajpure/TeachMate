@@ -13,6 +13,8 @@ class Subject(models.Model):
         default='theory'
     )
     is_active = models.BooleanField(default=True)
+    has_assignments = models.BooleanField(default=False)
+    has_mini_project = models.BooleanField(default=False)
 
     def __str__(self):
         return f"{self.name} ({self.code}) - {self.get_subject_type_display()}"
@@ -266,15 +268,32 @@ class Marks(models.Model):
             self.marks_data['average'] = avg
             self.overall_total = avg
         elif self.subject.subject_type == 'practical':
-            exps = self.marks_data.get('experiments', {})
-            self.experiments_total = sum(float(v) for v in exps.values())
+            # New structure: {"experiments": {"exp_1": {"a": X, "b": X, ...}, ...}}
+            experiments = self.marks_data.get('experiments', {})
+            total_exp_marks = 0
             
+            for exp_key, parts in experiments.items():
+                if isinstance(parts, dict):
+                    # Detailed breakdown (3,4,4,4)
+                    exp_total = sum(float(v) for k, v in parts.items() if k in ['a', 'b', 'c', 'd'])
+                    total_exp_marks += exp_total
+                else:
+                    # Legacy support for flat experiment marks
+                    try: total_exp_marks += float(parts)
+                    except: pass
+            
+            self.experiments_total = total_exp_marks
+            
+            # Additional components
             assigns = self.marks_data.get('assignments', {})
             a1 = float(assigns.get('assignment_1', 0))
             a2 = float(assigns.get('assignment_2', 0))
-            
             self.assignments_avg = (a1 + a2) / 2
-            self.overall_total = self.experiments_total + a1 + a2
+            
+            mini_project = float(self.marks_data.get('mini_project', 0))
+            
+            # Final Total as per user formula: experiments_total + a1 + a2 + mp
+            self.overall_total = self.experiments_total + a1 + a2 + mini_project
             
         super().save(*args, **kwargs)
 

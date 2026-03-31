@@ -21,6 +21,7 @@ interface UploadPreviewProps {
 const UploadPreview: React.FC<UploadPreviewProps> = ({ type, file, subjectId, subjectType, onClose, onSave }) => {
   const [isParsing, setIsParsing] = useState(true);
   const [data, setData] = useState<any[]>([]);
+  const [practicalMetadata, setPracticalMetadata] = useState<any>(null);
   const [editingId, setEditingId] = useState<string | number | null>(null);
 
   useEffect(() => {
@@ -36,11 +37,19 @@ const UploadPreview: React.FC<UploadPreviewProps> = ({ type, file, subjectId, su
           setData(entriesWithIds);
         } else {
           const res = await syllabusService.parse(file, subjectType || 'theory');
-          const entriesWithIds = res.data.map((entry: any, index: number) => ({
-            ...entry,
-            id: `new-${index}`
-          }));
-          setData(entriesWithIds);
+          if (subjectType === 'practical') {
+            const { entries, has_assignments, has_mini_project } = res.data;
+            setData(entries.map((entry: any, index: number) => ({
+              ...entry,
+              id: `new-${index}`
+            })));
+            setPracticalMetadata({ has_assignments, has_mini_project });
+          } else {
+            setData(res.data.map((entry: any, index: number) => ({
+              ...entry,
+              id: `new-${index}`
+            })));
+          }
         }
       } catch (error: any) {
         toast.error(error.response?.data?.error || 'Failed to parse file');
@@ -102,7 +111,7 @@ const UploadPreview: React.FC<UploadPreviewProps> = ({ type, file, subjectId, su
           return;
         }
         if (subjectType === 'practical') {
-          await syllabusService.commitExperiments(subjectId, data);
+          await syllabusService.commitExperiments(subjectId, data, practicalMetadata);
           toast.success('Practical experiments synced!');
         } else {
           const res = await syllabusService.commit(subjectId, data);

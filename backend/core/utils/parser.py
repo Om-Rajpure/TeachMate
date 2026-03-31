@@ -367,9 +367,13 @@ class TimetableParser:
         """
         df = pd.read_excel(file_path)
         
-        # Clean column names
+        # Cleaning and Metadata detection
         df.columns = [str(c).strip() for c in df.columns]
         
+        # Check for optional components
+        has_assignments = any('assignment' in c.lower() for c in df.columns)
+        has_mini_project = any('mini' in c.lower() and 'project' in c.lower() for c in df.columns)
+
         # Mapping rules for Practical/Lab
         col_map = {
             'exp_no': ['Experiment No', 'Exp No', 'Sr No', 'No', '#'],
@@ -409,6 +413,10 @@ class TimetableParser:
                 'title': title
             })
 
-        return entries
+        return {
+            "entries": entries,
+            "has_assignments": has_assignments,
+            "has_mini_project": has_mini_project
+        }
 
 
