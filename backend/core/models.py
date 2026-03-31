@@ -268,31 +268,44 @@ class Marks(models.Model):
             self.marks_data['average'] = avg
             self.overall_total = avg
         elif self.subject.subject_type == 'practical':
-            # New structure: {"experiments": {"exp_1": {"a": X, "b": X, ...}, ...}}
+            # Structure: {"experiments": {"exp_1": {"a": X, "b": X, ...}, ...}}
             experiments = self.marks_data.get('experiments', {})
             total_exp_marks = 0
+            exp_count = 0
             
             for exp_key, parts in experiments.items():
                 if isinstance(parts, dict):
                     # Detailed breakdown (3,4,4,4)
                     exp_total = sum(float(v) for k, v in parts.items() if k in ['a', 'b', 'c', 'd'])
                     total_exp_marks += exp_total
+                    exp_count += 1
                 else:
                     # Legacy support for flat experiment marks
-                    try: total_exp_marks += float(parts)
+                    try: 
+                        total_exp_marks += float(parts)
+                        exp_count += 1
                     except: pass
             
             self.experiments_total = total_exp_marks
+            # Calculate Experiments Average if experiments exist
+            self.experiments_avg = total_exp_marks / exp_count if exp_count > 0 else 0
             
-            # Additional components
+            # Additional components: Nested Assignments (2,2,1 structure)
             assigns = self.marks_data.get('assignments', {})
-            a1 = float(assigns.get('assignment_1', 0))
-            a2 = float(assigns.get('assignment_2', 0))
+            
+            def get_assign_total(assign_data):
+                if isinstance(assign_data, dict):
+                    return sum(float(v) for k, v in assign_data.items() if k in ['p1', 'p2', 'p3'])
+                return float(assign_data or 0)
+
+            a1 = get_assign_total(assigns.get('assignment_1', 0))
+            a2 = get_assign_total(assigns.get('assignment_2', 0))
+            
             self.assignments_avg = (a1 + a2) / 2
             
             mini_project = float(self.marks_data.get('mini_project', 0))
             
-            # Final Total as per user formula: experiments_total + a1 + a2 + mp
+            # Final Total = Experiments Sum + A1 + A2 (+ MiniProject if exists)
             self.overall_total = self.experiments_total + a1 + a2 + mini_project
             
         super().save(*args, **kwargs)

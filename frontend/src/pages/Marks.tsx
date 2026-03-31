@@ -93,7 +93,10 @@ const Marks = () => {
             }
             initialMarks[s.id] = { 
               experiments: exps, 
-              assignments: { assignment_1: 0, assignment_2: 0 },
+              assignments: { 
+                assignment_1: { p1: 0, p2: 0, p3: 0 }, 
+                assignment_2: { p1: 0, p2: 0, p3: 0 } 
+              },
               mini_project: 0
             };
           }
@@ -138,9 +141,10 @@ const Marks = () => {
           if (!studentMarks.experiments) studentMarks.experiments = {};
           if (!studentMarks.experiments[field]) studentMarks.experiments[field] = { a: 0, b: 0, c: 0, d: 0 };
           studentMarks.experiments[field][part] = numVal;
-        } else if (block === 'assignments' && field) {
+        } else if (block === 'assignments' && field && part) {
           if (!studentMarks.assignments) studentMarks.assignments = {};
-          studentMarks.assignments[field] = numVal;
+          if (!studentMarks.assignments[field]) studentMarks.assignments[field] = { p1: 0, p2: 0, p3: 0 };
+          studentMarks.assignments[field][part] = numVal;
         } else if (block === 'mini_project') {
           studentMarks.mini_project = numVal;
         }
@@ -157,9 +161,10 @@ const Marks = () => {
       return { expTotal: 0, assignAvg: 0, overall: Number(m.average) || 0, experiments: {} };
     }
 
-    // Calculate individual experiment totals
+    // Calculate individual experiment totals and count
     const expTotals: Record<string, number> = {};
     let experimentsSum = 0;
+    let expCount = 0;
     
     if (m.experiments) {
       Object.entries(m.experiments).forEach(([key, parts]: [string, any]) => {
@@ -167,18 +172,29 @@ const Marks = () => {
                       (Number(parts.c) || 0) + (Number(parts.d) || 0);
         expTotals[key] = total;
         experimentsSum += total;
+        expCount++;
       });
     }
 
-    const a1 = Number(m.assignments?.assignment_1) || 0;
-    const a2 = Number(m.assignments?.assignment_2) || 0;
+    const expAvg = expCount > 0 ? experimentsSum / expCount : 0;
+
+    const getAssignTotal = (assign: any) => {
+      if (typeof assign === 'object') {
+        return (Number(assign.p1) || 0) + (Number(assign.p2) || 0) + (Number(assign.p3) || 0);
+      }
+      return Number(assign) || 0;
+    };
+
+    const a1 = getAssignTotal(m.assignments?.assignment_1);
+    const a2 = getAssignTotal(m.assignments?.assignment_2);
     const assignAvg = (a1 + a2) / 2;
     const miniProject = Number(m.mini_project) || 0;
     
     const overall = experimentsSum + a1 + a2 + miniProject;
 
     return { 
-      expTotal: experimentsSum, 
+      expTotal: experimentsSum,
+      expAvg,
       assignAvg, 
       overall, 
       individualExps: expTotals 
@@ -322,23 +338,43 @@ const Marks = () => {
                       ) : (
                         <>
                           {Array.from({ length: marksConfig?.experiments || 0 }).map((_, i) => (
-                            <th key={i} className="px-4 py-3 text-center border-x border-gray-100 bg-gray-50/30 min-w-[180px]">
+                            <th key={i} className="px-4 py-3 text-center border-x border-gray-100 bg-gray-50/30 min-w-[200px]">
                               <div className="text-[10px] font-black text-text-muted uppercase tracking-widest mb-1">EXP-{i+1}</div>
                               <div className="flex justify-around text-[8px] font-black text-text-muted/40 px-2">
                                 <span title="Part A (3)">A</span>
                                 <span title="Part B (4)">B</span>
                                 <span title="Part C (4)">C</span>
                                 <span title="Part D (4)">D</span>
-                                <span className="text-primary/40 italic">TOT</span>
+                                <span className="text-primary italic">TOTAL</span>
                               </div>
                             </th>
                           ))}
-                          <th className="px-8 py-5 text-center text-[10px] font-black text-primary uppercase tracking-widest bg-gray-100/50 border-x border-gray-200 min-w-[120px]">EXP TOTAL</th>
+                          
+                          <th className="px-8 py-5 text-center text-[10px] font-black text-primary uppercase tracking-widest bg-primary/5 border-x-2 border-primary/10 min-w-[140px]">
+                            Experiments Avg
+                          </th>
                           
                           {marksConfig?.has_assignments && (
                             <>
-                              <th className="px-4 py-5 text-center text-[10px] font-black text-emerald-600 uppercase tracking-widest border-l border-emerald-100 bg-emerald-50/30">A1</th>
-                              <th className="px-4 py-5 text-center text-[10px] font-black text-emerald-600 uppercase tracking-widest bg-emerald-50/30">A2</th>
+                              <th className="px-4 py-3 text-center border-l-4 border-emerald-200 bg-emerald-50/30 min-w-[160px]">
+                                <div className="text-[10px] font-black text-emerald-700 uppercase tracking-widest mb-1">Assignment 1</div>
+                                <div className="flex justify-around text-[8px] font-black text-emerald-600/60 px-2">
+                                  <span title="Part 1 (2)">P1</span>
+                                  <span title="Part 2 (2)">P2</span>
+                                  <span title="Part 3 (1)">P3</span>
+                                  <span className="text-emerald-700 font-bold">∑</span>
+                                </div>
+                              </th>
+                              <th className="px-4 py-3 text-center border-x border-emerald-100 bg-emerald-50/30 min-w-[160px]">
+                                <div className="text-[10px] font-black text-emerald-700 uppercase tracking-widest mb-1">Assignment 2</div>
+                                <div className="flex justify-around text-[8px] font-black text-emerald-600/60 px-2">
+                                  <span title="Part 1 (2)">P1</span>
+                                  <span title="Part 2 (2)">P2</span>
+                                  <span title="Part 3 (1)">P3</span>
+                                  <span className="text-emerald-700 font-bold">∑</span>
+                                </div>
+                              </th>
+                              <th className="px-8 py-5 text-center text-[10px] font-black text-emerald-800 uppercase tracking-widest bg-emerald-100/50 min-w-[120px]">Assign Avg</th>
                             </>
                           )}
                           
@@ -346,7 +382,9 @@ const Marks = () => {
                             <th className="px-6 py-5 text-center text-[10px] font-black text-purple-600 uppercase tracking-widest bg-purple-50/30 border-l border-purple-100">Mini Project</th>
                           )}
                           
-                          <th className="px-8 py-5 text-center text-[10px] font-black text-primary uppercase tracking-widest sticky right-0 bg-white z-20 border-l border-gray-200 shadow-[-10px_0_15px_-3px_rgba(0,0,0,0.1)] min-w-[140px]">FINAL TOTAL</th>
+                          <th className="px-8 py-5 text-center text-[10px] font-black text-white bg-primary uppercase tracking-widest sticky right-0 z-30 shadow-[-10px_0_20px_rgba(0,0,0,0.1)] min-w-[150px]">
+                            Final Total
+                          </th>
                         </>
                       )}
                     </tr>
@@ -392,52 +430,68 @@ const Marks = () => {
 
                                 return (
                                   <td key={i} className="px-2 py-6 border-x border-gray-50 bg-white group-hover:bg-gray-50/30 transition-colors">
-                                    <div className="flex items-center justify-center gap-1.5 px-2">
+                                    <div className="flex items-center justify-center gap-1 px-1">
                                       {[
                                         { key: 'a', max: 3, color: 'focus:ring-blue-200' },
                                         { key: 'b', max: 4, color: 'focus:ring-blue-200' },
                                         { key: 'c', max: 4, color: 'focus:ring-blue-200' },
                                         { key: 'd', max: 4, color: 'focus:ring-blue-200' }
                                       ].map(part => (
-                                        <div key={part.key} className="flex flex-col items-center gap-1">
-                                          <input 
-                                            type="number"
-                                            min="0"
-                                            max={part.max}
-                                            value={parts[part.key as keyof typeof parts]}
-                                            onChange={(e) => handleMarkChange(student.id, 'experiments', expKey, e.target.value, part.key)}
-                                            className={`w-9 h-9 bg-gray-50 rounded-lg text-center font-black text-[11px] outline-none focus:bg-white focus:ring-2 ${part.color} transition-all ${Number(parts[part.key as keyof typeof parts]) > part.max ? 'text-rose-500 bg-rose-50' : ''}`}
-                                          />
-                                        </div>
+                                        <input 
+                                          key={part.key}
+                                          type="number"
+                                          min="0"
+                                          max={part.max}
+                                          value={parts[part.key as keyof typeof parts]}
+                                          onChange={(e) => handleMarkChange(student.id, 'experiments', expKey, e.target.value, part.key)}
+                                          className={`w-8 h-9 bg-gray-50 rounded-lg text-center font-black text-[10px] outline-none focus:bg-white focus:ring-2 ${part.color} transition-all ${Number(parts[part.key as keyof typeof parts]) > part.max ? 'text-rose-500 bg-rose-50' : ''}`}
+                                        />
                                       ))}
-                                      <div className="w-8 text-center font-black text-[11px] text-primary bg-primary/5 py-2 rounded-lg ml-1">
+                                      <div className="w-8 h-9 flex items-center justify-center font-black text-[10px] text-primary bg-primary/5 rounded-lg border border-primary/10 ml-0.5">
                                         {expTotal}
                                       </div>
                                     </div>
                                   </td>
                                 );
                               })}
-                              <td className="px-8 py-6 text-center font-black text-primary bg-gray-100/30 border-x border-gray-200">
-                                {totals.expTotal}
+                              
+                              <td className="px-8 py-6 text-center font-black text-primary bg-primary/5 border-x-2 border-primary/10 shadow-inner">
+                                {(totals as any).expAvg.toFixed(1)}
                               </td>
                               
                               {marksConfig?.has_assignments && (
                                 <>
-                                  <td className="px-4 py-6 text-center bg-emerald-50/20 border-l border-emerald-100">
-                                    <input 
-                                      type="number"
-                                      value={m.assignments?.assignment_1 || 0}
-                                      onChange={(e) => handleMarkChange(student.id, 'assignments', 'assignment_1', e.target.value)}
-                                      className="w-14 h-14 bg-white border border-emerald-100 rounded-2xl text-center font-black text-sm outline-none focus:ring-2 focus:ring-emerald-200 transition-all shadow-sm"
-                                    />
-                                  </td>
-                                  <td className="px-4 py-6 text-center bg-emerald-50/20">
-                                    <input 
-                                      type="number"
-                                      value={m.assignments?.assignment_2 || 0}
-                                      onChange={(e) => handleMarkChange(student.id, 'assignments', 'assignment_2', e.target.value)}
-                                      className="w-14 h-14 bg-white border border-emerald-100 rounded-2xl text-center font-black text-sm outline-none focus:ring-2 focus:ring-emerald-200 transition-all shadow-sm"
-                                    />
+                                  {[ 'assignment_1', 'assignment_2' ].map((field, idx) => {
+                                    const aParts = m.assignments?.[field] || { p1: 0, p2: 0, p3: 0 };
+                                    const aTotal = (Number(aParts.p1) || 0) + (Number(aParts.p2) || 0) + (Number(aParts.p3) || 0);
+
+                                    return (
+                                      <td key={field} className={`px-2 py-6 text-center bg-emerald-50/10 ${idx === 0 ? 'border-l-4 border-emerald-200' : 'border-x border-emerald-100'}`}>
+                                        <div className="flex items-center justify-center gap-1">
+                                          {[
+                                            { key: 'p1', max: 2 },
+                                            { key: 'p2', max: 2 },
+                                            { key: 'p3', max: 1 }
+                                          ].map(part => (
+                                            <input 
+                                              key={part.key}
+                                              type="number"
+                                              min="0"
+                                              max={part.max}
+                                              value={aParts[part.key as keyof typeof aParts]}
+                                              onChange={(e) => handleMarkChange(student.id, 'assignments', field, e.target.value, part.key)}
+                                              className={`w-8 h-9 bg-white border border-emerald-100 rounded-lg text-center font-black text-[10px] outline-none focus:ring-2 focus:ring-emerald-200 transition-all ${Number(aParts[part.key as keyof typeof aParts]) > part.max ? 'text-rose-500 bg-rose-50' : ''}`}
+                                            />
+                                          ))}
+                                          <div className="w-8 h-9 flex items-center justify-center font-black text-[10px] text-emerald-700 bg-emerald-100/50 rounded-lg ml-0.5">
+                                            {aTotal}
+                                          </div>
+                                        </div>
+                                      </td>
+                                    );
+                                  })}
+                                  <td className="px-8 py-6 text-center font-black text-emerald-800 bg-emerald-100/20">
+                                    {totals.assignAvg.toFixed(1)}
                                   </td>
                                 </>
                               )}
@@ -453,7 +507,7 @@ const Marks = () => {
                                 </td>
                               )}
 
-                              <td className="px-8 py-6 text-center font-black text-xl text-primary sticky right-0 bg-white z-10 shadow-[-10px_0_15px_-3px_rgba(0,0,0,0.1)] group-hover:bg-gray-50 border-l border-gray-200">
+                              <td className="px-8 py-6 text-center font-black text-2xl text-primary bg-primary/5 sticky right-0 z-20 shadow-[-10px_0_20px_rgba(0,0,0,0.05)] border-l-2 border-primary/20">
                                 {totals.overall}
                               </td>
                             </>
