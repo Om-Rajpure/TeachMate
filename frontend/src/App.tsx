@@ -3,6 +3,8 @@ import Layout from './components/Layout';
 import ProtectedRoute from './components/ProtectedRoute';
 import LandingPage from './pages/LandingPage';
 import LoginPage from './pages/LoginPage';
+import BlogPage from './pages/BlogPage';
+import ContactPage from './pages/ContactPage';
 import Dashboard from './pages/Dashboard';
 import Timetable from './pages/Timetable';
 import Lectures from './pages/Lectures';
@@ -21,6 +23,8 @@ function App() {
       {/* Public routes */}
       <Route path="/" element={<LandingPage />} />
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/blogs" element={<BlogPage />} />
+      <Route path="/contact" element={<ContactPage />} />
 
       {/* Protected app routes */}
       <Route
