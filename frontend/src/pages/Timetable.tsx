@@ -1,25 +1,50 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, ArrowLeft, Upload, Grid3X3, Table as TableIcon } from 'lucide-react';
+import { Calendar, Upload, Grid3X3, Table as TableIcon } from 'lucide-react';
 import { timetableService } from '../services/api';
 import { toast } from 'react-hot-toast';
-import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import TimetableGrid from '../components/TimetableGrid';
 import MobileTimetable from '../components/MobileTimetable';
+import UploadPreview from '../components/UploadPreview';
 import type { Timetable as TimetableType } from '../types';
 
 const Timetable: React.FC = () => {
-  const navigate = useNavigate();
   const [structuredTimetable, setStructuredTimetable] = useState<Record<string, TimetableType[]>>({});
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  
+  // Upload States
+  const [showUploadModal, setShowUploadModal] = useState(false);
+  const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 768);
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setUploadFile(file);
+    }
+  };
+
+  const onSaveUpload = async () => {
+    setIsSubmitting(true);
+    try {
+      toast.success('Timetable synced successfully!');
+      setShowUploadModal(false);
+      setUploadFile(null);
+      fetchTimetable();
+    } catch (error) {
+      toast.error('Failed to sync data');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   const fetchTimetable = async () => {
     try {
@@ -49,42 +74,41 @@ const Timetable: React.FC = () => {
   const hasData = Object.keys(structuredTimetable).length > 0;
 
   return (
-    <div className="max-w-7xl mx-auto space-y-8 pb-12">
-      {/* Header Card */}
-      <div className="relative bg-white p-8 md:p-10 rounded-[3rem] border border-gray-100 shadow-xl shadow-primary/5 overflow-hidden">
-        <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full -mr-32 -mt-32 blur-3xl"></div>
-        
-        <div className="relative flex flex-col md:flex-row md:items-center justify-between gap-8">
-          <div className="space-y-3">
-            <button 
-              onClick={() => navigate('/app/dashboard')}
-              className="flex items-center gap-2 text-primary text-xs font-black uppercase tracking-widest hover:gap-3 transition-all mb-2"
-            >
-              <ArrowLeft size={14} /> Back to Dashboard
-            </button>
-            <div className="flex items-center gap-2 text-primary font-bold text-xs uppercase tracking-widest">
-              <Calendar size={14} /> Full Weekly Schedule
-            </div>
-            <h1 className="text-4xl font-black text-text italic tracking-tighter">Academic Grid</h1>
-            <p className="text-text-muted text-sm font-medium max-w-md">
-              A structured view of your weekly teaching sessions, practicals, and intervals.
-            </p>
+    <div className="space-y-10 pb-12">
+      {/* 1. STANDARD HEADER & ACTIONS */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-8">
+        <div className="space-y-1">
+          <div className="flex items-center gap-2 text-primary font-bold text-xs uppercase tracking-widest mb-1">
+            <Calendar size={14} /> Full Weekly Schedule
           </div>
-          
-          <div className="flex items-center gap-2 p-1.5 bg-gray-50 rounded-2xl border border-gray-100 shadow-inner self-start md:self-center">
+          <h1 className="text-4xl font-black text-text italic tracking-tighter">Academic Grid</h1>
+          <p className="text-text-muted font-medium">A structured view of your weekly teaching sessions and practicals.</p>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-3">
+          {/* View Toggle */}
+          <div className="flex items-center gap-1 p-1 bg-gray-50 rounded-2xl border border-gray-100 shadow-inner">
             <button 
                 onClick={() => setViewMode('grid')}
-                className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${viewMode === 'grid' ? 'bg-primary text-white shadow-lg shadow-primary/20' : 'text-text-muted hover:text-text'}`}
+                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${viewMode === 'grid' ? 'bg-primary text-white shadow-lg shadow-primary/20' : 'text-text-muted hover:text-text'}`}
             >
-                <Grid3X3 size={14} /> Grid
+                <Grid3X3 size={12} /> Grid
             </button>
             <button 
                 onClick={() => setViewMode('list')}
-                className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${viewMode === 'list' ? 'bg-primary text-white shadow-lg shadow-primary/20' : 'text-text-muted hover:text-text'}`}
+                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${viewMode === 'list' ? 'bg-primary text-white shadow-lg shadow-primary/20' : 'text-text-muted hover:text-text'}`}
             >
-                <TableIcon size={14} /> List
+                <TableIcon size={12} /> List
             </button>
           </div>
+
+          <button 
+            onClick={() => setShowUploadModal(true)}
+            className="flex items-center gap-2 px-6 py-3 bg-white border border-gray-100 text-primary font-bold rounded-2xl hover:bg-gray-50 transition-all shadow-sm"
+          >
+            <Upload size={18} />
+            <span>{hasData ? 'Update Timetable' : 'Upload Timetable'}</span>
+          </button>
         </div>
       </div>
 
@@ -102,13 +126,14 @@ const Timetable: React.FC = () => {
                 </div>
                 <h2 className="text-3xl font-black text-text mb-4">No Timetable Detected</h2>
                 <p className="text-text-muted font-medium max-w-sm mb-10 leading-relaxed">
-                    The academic grid will populate once you sync your timetable Excel file from the dashboard.
+                    Personalize your academic grid by uploading your timetable Excel or PDF document.
                 </p>
                 <button 
-                    onClick={() => navigate('/app/dashboard')}
-                    className="px-10 py-5 bg-primary text-white font-bold rounded-2xl shadow-xl shadow-primary/20 hover:bg-primary-dark transition-all active:scale-95"
+                    onClick={() => setShowUploadModal(true)}
+                    className="px-10 py-5 bg-primary text-white font-bold rounded-2xl shadow-xl shadow-primary/20 hover:bg-primary-dark transition-all active:scale-95 flex items-center gap-3"
                 >
-                    Back to Dashboard
+                    <Upload size={20} />
+                    Upload Excelfile
                 </button>
             </motion.div>
           ) : isMobile ? (
@@ -145,6 +170,61 @@ const Timetable: React.FC = () => {
           )}
         </AnimatePresence>
       </motion.div>
+
+      {/* UPLOAD MODAL */}
+      <AnimatePresence>
+        {showUploadModal && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center px-6">
+            <motion.div 
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              onClick={() => !isSubmitting && setShowUploadModal(false)}
+              className="absolute inset-0 bg-text/40 backdrop-blur-sm"
+            />
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 20 }}
+              className="relative w-full max-w-lg bg-white rounded-[2.5rem] p-10 shadow-2xl overflow-hidden"
+            >
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="text-2xl font-black text-text">Upload Timetable</h3>
+              </div>
+              {!uploadFile && (
+                <p className="text-text-muted mb-8 italic text-sm">
+                  Upload your weekly schedule in Excel or PDF format
+                </p>
+              )}
+
+              {uploadFile ? (
+                <UploadPreview 
+                  type="timetable" 
+                  file={uploadFile} 
+                  onClose={() => {
+                    setUploadFile(null);
+                    setShowUploadModal(false);
+                  }}
+                  onSave={onSaveUpload}
+                />
+              ) : (
+                <div className="space-y-6">
+                  <label className="group relative block px-10 py-16 border-2 border-dashed border-gray-200 rounded-[2rem] hover:border-primary/50 hover:bg-primary/5 transition-all text-center cursor-pointer">
+                    <input type="file" className="absolute inset-0 opacity-0 cursor-pointer" onChange={handleFileUpload} />
+                    <div className="flex flex-col items-center gap-4 text-text-muted group-hover:text-primary">
+                      <div className="p-4 bg-gray-50 rounded-2xl group-hover:bg-primary/10 transition-colors">
+                        <Upload size={32} />
+                      </div>
+                      <div>
+                        <p className="font-bold text-lg">Click or drag to upload</p>
+                        <p className="text-sm opacity-60 mt-1">Excel or PDF formats supported</p>
+                      </div>
+                    </div>
+                  </label>
+                </div>
+              )}
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

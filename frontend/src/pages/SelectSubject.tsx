@@ -40,23 +40,28 @@ const SelectSubject = () => {
   }
 
   return (
-    <div className="max-w-5xl mx-auto space-y-8 pb-10 px-4 md:px-0">
-      <div className="space-y-2">
-        <h1 className="text-3xl md:text-4xl font-black text-text">Select Subject</h1>
-        <p className="text-text-muted font-medium italic">Choose a subject to manage its students</p>
-      </div>
+    <div className="space-y-10 pb-10">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-8">
+        <div className="space-y-1">
+          <div className="flex items-center gap-2 text-primary font-bold text-xs uppercase tracking-widest mb-1">
+            <GraduationCap size={14} /> Student Roster
+          </div>
+          <h1 className="text-4xl font-black text-text italic tracking-tighter">Student Management</h1>
+          <p className="text-text-muted font-medium">Select a subject to view or manage its student list.</p>
+        </div>
 
-      <div className="relative max-w-md">
-        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-text-muted">
-          <Search size={18} />
-        </span>
-        <input 
-          type="text" 
-          placeholder="Search subject by name or code..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="w-full pl-12 pr-4 py-3 bg-white border border-gray-100 rounded-2xl focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none font-medium shadow-sm"
-        />
+        <div className="relative w-full md:w-72">
+          <span className="absolute left-4 top-1/2 -translate-y-1/2 text-text-muted">
+            <Search size={18} />
+          </span>
+          <input 
+            type="text" 
+            placeholder="Search subjects..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full pl-12 pr-4 py-3 bg-white border border-gray-100 rounded-2xl focus:ring-2 focus:ring-primary/20 outline-none font-bold text-sm shadow-sm"
+          />
+        </div>
       </div>
 
       <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">

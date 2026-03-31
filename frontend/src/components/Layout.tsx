@@ -1,9 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { 
-  LayoutDashboard, BookOpen, User, 
-  CheckSquare, ListChecks, ClipboardCheck, BarChart3, 
-  Bell, FileText, LogOut
+  LayoutDashboard, Users, User, 
+  CheckSquare, ListChecks, BarChart3, 
+  Bell, LogOut, Calendar
 } from 'lucide-react';
 import { Toaster } from 'react-hot-toast';
 import { notificationService } from '../services/api';
@@ -22,12 +22,11 @@ const Sidebar = () => {
 
   const navItems = [
     { name: 'Dashboard', icon: LayoutDashboard, path: '/app/dashboard' },
-    { name: 'Lectures', icon: BookOpen, path: '/app/lectures' },
+    { name: 'Timetable', icon: Calendar, path: '/app/timetable' },
+    { name: 'Students', icon: Users, path: '/app/students' },
     { name: 'Attendance', icon: CheckSquare, path: '/app/attendance' },
     { name: 'Syllabus', icon: ListChecks, path: '/app/syllabus' },
-    { name: 'Marks', icon: ClipboardCheck, path: '/app/marks' },
     { name: 'Analytics', icon: BarChart3, path: '/app/analytics' },
-    { name: 'Resources', icon: FileText, path: '/app/resources' },
   ];
 
   const handleLogout = async () => {
@@ -84,11 +83,11 @@ const Sidebar = () => {
 const MobileNav = () => {
   const navItems = [
     { name: 'Home', icon: LayoutDashboard, path: '/app/dashboard' },
-    { name: 'Logs', icon: BookOpen, path: '/app/lectures' },
+    { name: 'Time', icon: Calendar, path: '/app/timetable' },
+    { name: 'Students', icon: Users, path: '/app/students' },
     { name: 'Attendance', icon: CheckSquare, path: '/app/attendance' },
-    { name: 'Marks', icon: ClipboardCheck, path: '/app/marks' },
+    { name: 'Syllabus', icon: ListChecks, path: '/app/syllabus' },
     { name: 'Stats', icon: BarChart3, path: '/app/analytics' },
-    { name: 'Files', icon: FileText, path: '/app/resources' },
   ];
 
   return (
@@ -116,8 +115,8 @@ const MobileNav = () => {
   
     const fetchUnread = useCallback(async () => {
        try {
-         const res = await notificationService.getAll();
-         setUnreadCount(res.data.filter(n => !n.is_read).length);
+          const res = await notificationService.getAll();
+          setUnreadCount(res.data.filter((n: any) => !n.is_read).length);
        } catch (err) {
          console.error(err);
        }
@@ -133,13 +132,12 @@ const MobileNav = () => {
 
     const displayName = user?.first_name || user?.username || 'Teacher';
   
-    const pageTitle = pathname === '/app/dashboard' ? 'Dashboard' 
-                    : pathname === '/app/timetable' ? 'Timetable'
-                    : pathname === '/app/lectures' ? 'Lecture Logs'
-                    : pathname === '/app/attendance' ? 'Attendance'
+    const pageTitle = pathname === '/app/dashboard' ? 'Overview' 
+                    : pathname === '/app/timetable' ? 'Weekly Schedule'
+                    : pathname.startsWith('/app/students') ? 'Student Directory'
+                    : pathname === '/app/attendance' ? 'Attendance Tracking'
                     : pathname === '/app/syllabus' ? 'Syllabus Planner'
-                    : pathname === '/app/marks' ? 'Marks Management'
-                    : pathname === '/app/analytics' ? 'Performance Analytics'
+                    : pathname === '/app/analytics' ? 'Performance Insights'
                     : pathname === '/app/resources' ? 'Resource Center'
                     : pathname === '/app/notifications' ? 'Notifications'
                     : 'TeachMate';

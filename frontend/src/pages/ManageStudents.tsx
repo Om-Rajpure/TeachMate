@@ -189,43 +189,47 @@ const ManageStudents = () => {
         <div className="flex flex-wrap gap-3">
           <button 
             onClick={() => setShowUploadModal(true)}
-            className="px-6 py-3.5 bg-white text-text border border-gray-200 rounded-2xl font-bold flex items-center gap-2 hover:bg-gray-50 transition-all shadow-sm active:scale-95"
+            className="flex items-center gap-2 px-6 py-3 bg-white border border-gray-100 text-primary font-bold rounded-2xl hover:bg-gray-50 transition-all shadow-sm"
           >
-            <Upload size={18} /> Bulk Upload
+            <Upload size={18} />
+            <span>Bulk Upload</span>
           </button>
           <button 
-            onClick={() => setShowAddModal(true)}
-            className="px-6 py-3.5 bg-primary text-white rounded-2xl font-bold flex items-center gap-2 shadow-lg shadow-primary/20 hover:bg-primary-dark transition-all active:scale-95"
+            onClick={() => { setEditingStudent(null); setShowAddModal(true); }}
+            className="flex items-center gap-2 px-6 py-3 bg-primary text-white font-bold rounded-2xl hover:bg-primary-dark transition-all shadow-lg shadow-primary/20"
           >
-            <Plus size={18} /> Add Student
+            <Plus size={18} />
+            <span>Add Student</span>
           </button>
         </div>
       </div>
 
-      {/* Filters & Search */}
-      <div className="bg-white p-4 rounded-[2rem] border border-gray-100 flex flex-col md:flex-row gap-4 items-center">
-        <div className="relative flex-1 group">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-text-muted transition-colors group-focus-within:text-primary" size={20} />
+      <div className="bg-white p-4 rounded-[2.5rem] border border-gray-100 shadow-xl shadow-primary/5 flex flex-col md:flex-row md:items-center gap-4">
+        <div className="relative flex-1">
+          <span className="absolute left-4 top-1/2 -translate-y-1/2 text-text-muted">
+            <Search size={18} />
+          </span>
           <input 
             type="text" 
-            placeholder="Search by name..."
+            placeholder="Search students by name or roll number..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-12 pr-4 py-3.5 bg-gray-50/50 border border-transparent focus:bg-white focus:border-primary/30 rounded-2xl outline-none font-medium transition-all"
+            className="w-full pl-12 pr-4 py-3 bg-gray-50 border-none rounded-2xl focus:ring-2 focus:ring-primary/20 outline-none font-bold text-sm"
           />
         </div>
-        <div className="flex items-center gap-2 w-full md:w-fit">
-          <Filter size={18} className="text-text-muted" />
-          <select 
-            value={filterDivision}
-            onChange={(e) => setFilterDivision(e.target.value)}
-            className="flex-1 md:w-48 px-4 py-3.5 bg-gray-50/50 border border-transparent focus:bg-white focus:border-primary/30 rounded-2xl outline-none font-bold text-sm transition-all cursor-pointer"
-          >
-            <option value="">All Divisions</option>
-            {divisions.map(d => (
-              <option key={d.id} value={d.name}>{d.name}</option>
-            ))}
-          </select>
+        
+        <div className="flex items-center gap-2">
+           <Filter size={18} className="text-text-muted ml-2" />
+           <select 
+             value={filterDivision}
+             onChange={(e) => setFilterDivision(e.target.value)}
+             className="bg-gray-50 border-none rounded-2xl px-4 py-3 text-sm font-bold text-text outline-none focus:ring-2 focus:ring-primary/20"
+           >
+             <option value="">All Divisions</option>
+             {divisions.map(div => (
+               <option key={div.id} value={div.id}>{div.name}</option>
+             ))}
+           </select>
         </div>
       </div>
 
@@ -283,7 +287,7 @@ const ManageStudents = () => {
                               name: s.name,
                               roll_number: String(s.roll_number || ''),
                               division_id: String(div?.id || ''),
-                              batch_id: '' // We'd need batch list to map back
+                              batch_id: ''
                             });
                             setShowAddModal(true);
                           }}
@@ -305,7 +309,7 @@ const ManageStudents = () => {
                 ))
               ) : (
                 <tr>
-                  <td colSpan={4} className="px-8 py-20 text-center space-y-4">
+                  <td colSpan={5} className="px-8 py-20 text-center space-y-4">
                     <div className="bg-gray-50 w-20 h-20 rounded-full flex items-center justify-center mx-auto text-text-muted/30">
                       <Users size={40} />
                     </div>

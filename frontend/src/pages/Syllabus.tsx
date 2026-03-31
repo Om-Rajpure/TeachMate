@@ -4,9 +4,8 @@ import {
   CheckCircle2, 
   Clock, 
   TrendingUp, 
-  AlertCircle,
-  Lightbulb,
   Target,
+  Lightbulb,
   Layers,
   FlaskConical,
   BookOpen,
@@ -15,10 +14,12 @@ import {
   X,
   Save,
   Plus,
-  RefreshCcw
+  RefreshCcw,
+  Upload
 } from 'lucide-react';
 import { AnimatePresence } from 'framer-motion';
 import { syllabusService, subjectService } from '../services/api';
+import UploadPreview from '../components/UploadPreview';
 import type { Subject, Chapter, LecturePlan, Experiment } from '../types';
 import { toast } from 'react-hot-toast';
 
@@ -38,6 +39,16 @@ const Syllabus = () => {
   const [editingItem, setEditingItem] = useState<{ id: number; type: 'lecture' | 'experiment'; value: string } | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [newItemName, setNewItemName] = useState('');
+
+  // Upload States (Migrated from Dashboard)
+  const [showUploadModal, setShowUploadModal] = useState(false);
+  const [uploadStep, setUploadStep] = useState(0); // 0: Type, 1: Subject, 2: Upload
+  const [uploadType, setUploadType] = useState<'theory' | 'practical'>('theory');
+  const [uploadSubjectId, setUploadSubjectId] = useState<number | null>(null);
+  const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [isAddingSubject, setIsAddingSubject] = useState(false);
+  const [newSubjectName, setNewSubjectName] = useState('');
+  const [newSubjectCode, setNewSubjectCode] = useState('');
 
   useEffect(() => {
     fetchInitialData();
@@ -168,6 +179,56 @@ const Syllabus = () => {
     }
   };
 
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setUploadFile(file);
+    }
+  };
+
+  const handleCreateSubject = async () => {
+    if (!newSubjectName || !newSubjectCode) {
+      toast.error('Please fill all fields');
+      return;
+    }
+    setIsSubmitting(true);
+    const payload = {
+      name: newSubjectName,
+      code: newSubjectCode,
+      subject_type: uploadType
+    };
+    try {
+      const res = await subjectService.create(payload);
+      setSubjects(prev => [...prev, res.data]);
+      setUploadSubjectId(res.data.id);
+      setUploadStep(2);
+      setIsAddingSubject(false);
+      setNewSubjectName('');
+      setNewSubjectCode('');
+      toast.success('Subject created and selected!');
+    } catch (error) {
+      toast.error('Failed to create subject');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const onSaveUpload = async () => {
+    setIsSubmitting(true);
+    try {
+      toast.success('Syllabus synced successfully!');
+      setShowUploadModal(false);
+      setUploadFile(null);
+      setUploadStep(0);
+      setUploadSubjectId(null);
+      fetchInitialData();
+    } catch (error) {
+      toast.error('Failed to sync data');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const handleAddItem = async () => {
     if (!newItemName || selectedSubject === 'all') return;
     setIsSubmitting(true);
@@ -288,158 +349,83 @@ const Syllabus = () => {
     );
   }
 
+  const filteredUploadSubjects = subjects.filter(s => (s as any).subject_type === uploadType);
+
   return (
-    <div className="space-y-8 pb-20">
-      {/* Tab Switcher */}
-      <div className="flex items-center justify-between">
-        <div className="flex bg-white p-1.5 rounded-[1.5rem] border border-gray-100 shadow-sm">
+    <div className="space-y-10 pb-12">
+      {/* 1. STANDARD HEADER & ACTIONS */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-8">
+        <div className="space-y-1">
+          <div className="flex items-center gap-2 text-primary font-bold text-xs uppercase tracking-widest mb-1">
+            <Target size={14} /> Curriculum Planner
+          </div>
+          <h1 className="text-4xl font-black text-text italic tracking-tighter">Syllabus Tracker</h1>
+          <p className="text-text-muted font-medium">Manage and track your academic progress for all subjects.</p>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-3">
+          {/* Tab Toggle */}
+          <div className="flex items-center gap-1 p-1 bg-gray-50 rounded-2xl border border-gray-100 shadow-inner">
+            <button 
+                onClick={() => setActiveTab('theory')}
+                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'theory' ? 'bg-primary text-white shadow-lg shadow-primary/20' : 'text-text-muted hover:text-text'}`}
+            >
+                <BookOpen size={12} /> Theory
+            </button>
+            <button 
+                onClick={() => setActiveTab('practical')}
+                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'practical' ? 'bg-purple-600 text-white shadow-lg shadow-purple-200' : 'text-text-muted hover:text-text'}`}
+            >
+                <FlaskConical size={12} /> Practical
+            </button>
+          </div>
+
           <button 
-            onClick={() => setActiveTab('theory')}
-            className={`flex items-center gap-2 px-8 py-3 rounded-2xl font-black text-sm uppercase tracking-tight transition-all ${
-              activeTab === 'theory' ? 'bg-primary text-white shadow-lg shadow-primary/20' : 'text-text-muted hover:bg-gray-50'
-            }`}
+            onClick={() => { setShowUploadModal(true); setUploadStep(0); }}
+            className="flex items-center gap-2 px-6 py-3 bg-white border border-gray-100 text-primary font-bold rounded-2xl hover:bg-gray-50 transition-all shadow-sm"
           >
-            <BookOpen size={18} /> Theory
-          </button>
-          <button 
-            onClick={() => setActiveTab('practical')}
-            className={`flex items-center gap-2 px-8 py-3 rounded-2xl font-black text-sm uppercase tracking-tight transition-all ${
-              activeTab === 'practical' ? 'bg-purple-600 text-white shadow-lg shadow-purple-600/20' : 'text-text-muted hover:bg-gray-50'
-            }`}
-          >
-            <FlaskConical size={18} /> Practical
+            <Upload size={18} />
+            <span>Upload Syllabus</span>
           </button>
         </div>
       </div>
 
-      {/* Header Stats */}
-      <section className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm relative overflow-hidden group">
-          <div className="absolute -right-4 -bottom-4 text-primary/5 group-hover:scale-110 transition-transform">
-            <Target size={120} />
-          </div>
-          <p className="text-sm font-bold text-text-muted mb-1 uppercase tracking-wider">
-            {activeTab === 'theory' ? 'Theory' : 'Practical'} Progress
-          </p>
-          <div className="flex items-end gap-3">
-            <h3 className="text-4xl font-black text-text">{stats.avg}%</h3>
-            <span className="text-xs text-green-500 font-bold mb-2">
-              {stats.completed} / {stats.total} {activeTab === 'theory' ? 'Lecs' : 'Exps'}
-            </span>
-          </div>
-          <div className="mt-4 h-2 w-full bg-gray-100 rounded-full overflow-hidden">
-            <motion.div 
-              initial={{ width: 0 }}
-              animate={{ width: `${stats.avg}%` }}
-              className={`h-full ${activeTab === 'theory' ? 'bg-primary' : 'bg-purple-600'}`}
-            />
-          </div>
-        </div>
-
-        <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
-          <p className="text-sm font-bold text-text-muted mb-1 uppercase tracking-wider">Structure</p>
-          <div className="flex items-center gap-4 mt-2">
-            <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${activeTab === 'theory' ? 'bg-orange-50 text-orange-600' : 'bg-purple-50 text-purple-600'}`}>
-              {activeTab === 'theory' ? <Layers size={24} /> : <FlaskConical size={24} />}
-            </div>
-            <div>
-              <h3 className="text-2xl font-bold text-text">
-                {activeTab === 'theory' ? `${chapters.length} Chapters` : `${experiments.length} Experiments`}
-              </h3>
-              <p className="text-xs text-text-muted">Distributed across subjects</p>
-            </div>
-          </div>
-        </div>
-
-        <div className={`${activeTab === 'theory' ? 'bg-primary/5 border-primary/10' : 'bg-purple-50 border-purple-100'} p-6 rounded-2xl border flex items-start gap-4`}>
-          <div className="mt-1">{suggestion.icon}</div>
-          <div>
-            <p className={`text-xs font-bold uppercase tracking-wider mb-1 ${activeTab === 'theory' ? 'text-primary' : 'text-purple-600'}`}>Smart Planner</p>
-            <p className="text-sm text-text font-medium leading-relaxed">
-              {suggestion.text}
-            </p>
-          </div>
-        </div>
-      </section>
-
-      {/* Toolbar - UPGRADED SUBJECT FILTER */}
-      <div className="flex flex-col lg:flex-row gap-6 items-start justify-between">
-        <div className="w-full lg:max-w-3xl space-y-4">
-          <div className="flex items-center justify-between px-1">
-            <h4 className="text-xs font-black text-text-muted uppercase tracking-[0.2em]">Subject Management</h4>
-            <div className="flex gap-2 text-[10px] font-bold">
-              <span className="flex items-center gap-1 text-emerald-600"><div className="w-1.5 h-1.5 rounded-full bg-emerald-500" /> Theory</span>
-              <span className="flex items-center gap-1 text-purple-600"><div className="w-1.5 h-1.5 rounded-full bg-purple-500" /> Practical</span>
-            </div>
-          </div>
-          
-          <div className="flex flex-wrap gap-2">
+      <div className="space-y-8">
+        {/* Filters & Management Actions */}
+        <div className="flex flex-col md:flex-row md:items-center gap-4">
+          <div className="flex-1 flex gap-2 overflow-x-auto pb-2 md:pb-0 custom-scrollbar">
             <button 
               onClick={() => setSelectedSubject('all')}
-              className={`px-5 py-2.5 rounded-xl text-sm font-black transition-all border ${
+              className={`px-5 py-2.5 rounded-xl text-xs font-bold transition-all border shrink-0 ${
                 selectedSubject === 'all' 
-                ? "bg-gray-900 text-white border-gray-900 shadow-lg shadow-gray-900/10" 
-                : "bg-white text-text-muted border-gray-100 hover:border-gray-200"
+                ? 'bg-text text-white border-text shadow-lg' 
+                : 'bg-white text-text-muted border-gray-100 hover:border-gray-300'
               }`}
             >
-              All Overview
+              All Subjects
             </button>
-            
-            {/* Theory Subjects Group */}
-            {subjects.filter(s => s.subject_type === 'theory').map(s => (
-              <div key={s.id} className="group relative flex items-center">
+            {subjects.filter(s => (s as any).subject_type === activeTab).map(subject => (
+              <div key={subject.id} className="group/subject relative flex items-center">
                 <button 
-                  onClick={() => { setActiveTab('theory'); setSelectedSubject(s.id); }}
-                  className={`pl-5 pr-10 py-2.5 rounded-xl text-sm font-bold transition-all border flex items-center gap-2 ${
-                    selectedSubject === s.id && activeTab === 'theory'
-                    ? "bg-primary text-white border-primary shadow-lg shadow-primary/20" 
-                    : "bg-white text-text-muted border-gray-100 hover:border-primary/30"
+                  onClick={() => setSelectedSubject(subject.id)}
+                  className={`pl-5 pr-10 py-2.5 rounded-xl text-xs font-bold transition-all border shrink-0 flex items-center gap-2 ${
+                    selectedSubject === subject.id
+                    ? `${themeBg} text-white border-transparent shadow-lg shadow-primary/20` 
+                    : 'bg-white text-text-muted border-gray-100 hover:border-gray-200'
                   }`}
                 >
-                  <BookOpen size={14} className={selectedSubject === s.id ? "text-white" : "text-primary/60"} />
-                  {s.name}
+                  {subject.name}
                 </button>
-                <div className={`absolute right-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity ${selectedSubject === s.id ? 'opacity-100' : ''}`}>
+                <div className={`absolute right-2 flex items-center gap-1 opacity-0 group-hover/subject:opacity-100 transition-opacity ${selectedSubject === subject.id ? 'text-white' : 'text-text-muted'}`}>
                   <button 
-                    onClick={(e) => handleEditSubject(e, s)}
-                    className={`p-1 rounded-md hover:bg-white/20 transition-colors ${selectedSubject === s.id ? 'text-white' : 'text-gray-400 hover:text-primary'}`}
+                    onClick={(e) => handleEditSubject(e, subject)}
+                    className="p-1 hover:bg-black/10 rounded-md transition-colors"
                   >
                     <Edit2 size={12} />
                   </button>
                   <button 
-                    onClick={(e) => handleDeleteSubject(e, s.id)}
-                    className={`p-1 rounded-md hover:bg-white/20 transition-colors ${selectedSubject === s.id ? 'text-white' : 'text-gray-400 hover:text-rose-500'}`}
-                  >
-                    <Trash2 size={12} />
-                  </button>
-                </div>
-              </div>
-            ))}
-
-            {/* Practical Subjects Group */}
-            {subjects.filter(s => s.subject_type === 'practical').map(s => (
-              <div key={s.id} className="group relative flex items-center">
-                <button 
-                  onClick={() => { setActiveTab('practical'); setSelectedSubject(s.id); }}
-                  className={`pl-5 pr-10 py-2.5 rounded-xl text-sm font-bold transition-all border flex items-center gap-2 ${
-                    selectedSubject === s.id && activeTab === 'practical'
-                    ? "bg-purple-600 text-white border-purple-600 shadow-lg shadow-purple-600/20" 
-                    : "bg-white text-text-muted border-gray-100 hover:border-purple-300"
-                  }`}
-                >
-                  <FlaskConical size={14} className={selectedSubject === s.id ? "text-white" : "text-purple-400"} />
-                  {s.name}
-                </button>
-                <div className={`absolute right-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity ${selectedSubject === s.id ? 'opacity-100' : ''}`}>
-                  <button 
-                    onClick={(e) => handleEditSubject(e, s)}
-                    className={`p-1 rounded-md hover:bg-white/20 transition-colors ${selectedSubject === s.id ? 'text-white' : 'text-gray-400 hover:text-purple-600'}`}
-                  >
-                    <Edit2 size={12} />
-                  </button>
-                  <button 
-                    onClick={(e) => handleDeleteSubject(e, s.id)}
-                    className={`p-1 rounded-md hover:bg-white/20 transition-colors ${selectedSubject === s.id ? 'text-white' : 'text-gray-400 hover:text-rose-500'}`}
+                    onClick={(e) => handleDeleteSubject(e, subject.id)}
+                    className="p-1 hover:bg-black/10 rounded-md transition-colors"
                   >
                     <Trash2 size={12} />
                   </button>
@@ -447,77 +433,144 @@ const Syllabus = () => {
               </div>
             ))}
           </div>
+
+          <button 
+            onClick={() => setShowManagePanel(!showManagePanel)}
+            className={`px-5 py-2.5 rounded-xl text-xs font-bold transition-all border shrink-0 flex items-center gap-2 ${
+              showManagePanel 
+              ? 'bg-rose-50 text-rose-600 border-rose-100' 
+              : 'bg-white text-text-muted border-gray-100 hover:border-gray-300'
+            }`}
+          >
+            <RefreshCcw size={14} className={showManagePanel ? 'animate-spin-slow' : ''} />
+            {showManagePanel ? 'Close Management' : 'Manage Subjects'}
+          </button>
         </div>
 
-        <div className="flex gap-2 w-full lg:w-auto self-end">
-            <button 
-              disabled={selectedSubject === 'all'}
-              onClick={() => setShowManagePanel(true)}
-              className={`flex-1 lg:w-auto px-8 py-4 ${themeBg} text-white rounded-[1.5rem] font-black uppercase text-xs tracking-widest flex items-center justify-center gap-3 hover:opacity-90 transition-all shadow-xl shadow-gray-100 disabled:opacity-30 disabled:grayscale`}
-            >
-              <Layers size={18} /> Manage Syllabus
-            </button>
-        </div>
-      </div>
+        {/* Header Stats */}
+        <section className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm relative overflow-hidden group">
+            <div className="absolute -right-4 -bottom-4 text-primary/5 group-hover:scale-110 transition-transform">
+              <Target size={120} />
+            </div>
+            <p className="text-sm font-bold text-text-muted mb-1 uppercase tracking-wider">
+              {activeTab === 'theory' ? 'Theory' : 'Practical'} Progress
+            </p>
+            <div className="flex items-end gap-3">
+              <h3 className="text-4xl font-black text-text">{stats.avg}%</h3>
+              <span className="text-xs text-green-500 font-bold mb-2">
+                {stats.completed} / {stats.total} {activeTab === 'theory' ? 'Lecs' : 'Exps'}
+              </span>
+            </div>
+            <div className="mt-4 h-2 w-full bg-gray-100 rounded-full overflow-hidden">
+              <motion.div 
+                initial={{ width: 0 }}
+                animate={{ width: `${stats.avg}%` }}
+                className={`h-full ${activeTab === 'theory' ? 'bg-primary' : 'bg-purple-600'}`}
+              />
+            </div>
+          </div>
 
-      {/* Hierarchical Progress List */}
-      <div className="space-y-10">
-        {activeTab === 'theory' ? groupedData.map((group, groupIdx) => {
-            const chapterProgress = group.plans.length > 0 
-                ? (group.plans.filter(p => p.status === 'Completed').length / group.plans.length) * 100 
-                : 0;
+          <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
+            <p className="text-sm font-bold text-text-muted mb-1 uppercase tracking-wider">Structure</p>
+            <div className="flex items-center gap-4 mt-2">
+              <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${activeTab === 'theory' ? 'bg-orange-50 text-orange-600' : 'bg-purple-50 text-purple-600'}`}>
+                {activeTab === 'theory' ? <Layers size={24} /> : <FlaskConical size={24} />}
+              </div>
+              <div>
+                <h3 className="text-2xl font-bold text-text">
+                  {activeTab === 'theory' ? `${chapters.length} Chapters` : `${experiments.length} Experiments`}
+                </h3>
+                <p className="text-xs text-text-muted">Distributed across subjects</p>
+              </div>
+            </div>
+          </div>
 
-            return (
-                <div key={group.chapter.id} className="space-y-4">
-                    <div className="flex items-center justify-between px-2">
-                        <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-xl bg-gray-900 text-white flex items-center justify-center font-black text-sm">
-                                {groupIdx + 1}
-                            </div>
-                            <div>
-                                <h3 className="font-black text-xl text-text leading-tight">{group.chapter.name}</h3>
-                                <p className="text-xs text-text-muted font-bold uppercase tracking-widest mt-0.5">
-                                    CO: {group.chapter.co_covered} • {group.plans.length} Lectures
-                                </p>
-                            </div>
-                        </div>
-                        <div className="text-right">
-                            <span className="text-sm font-black text-primary">{Math.round(chapterProgress)}% Done</span>
-                        </div>
-                    </div>
+          <div className={`${activeTab === 'theory' ? 'bg-primary/5 border-primary/10' : 'bg-purple-50 border-purple-100'} p-6 rounded-2xl border flex items-start gap-4`}>
+            <div className="mt-1">{suggestion.icon}</div>
+            <div>
+              <p className={`text-xs font-bold uppercase tracking-wider mb-1 ${activeTab === 'theory' ? 'text-primary' : 'text-purple-600'}`}>Smart Planner</p>
+              <p className="text-sm text-text font-medium leading-relaxed">
+                {suggestion.text}
+              </p>
+            </div>
+          </div>
+        </section>
 
-                    <div className="grid gap-3">
-                        {group.plans.map((item, idx) => (
-                            <motion.div
-                                key={item.id}
-                                initial={{ opacity: 0, y: 10 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                transition={{ delay: idx * 0.03 }}
-                                className="bg-white p-4 rounded-2xl border border-gray-100 flex items-center justify-between group hover:border-primary/20 transition-all"
-                            >
-                                <div className="flex items-center gap-4">
-                                    <div className="text-xs font-black text-text-muted w-8">L{item.lecture_number}</div>
-                                    <div className="h-4 w-[1px] bg-gray-100" />
-                                    <span className="text-sm font-bold text-text group-hover:text-primary transition-colors">
-                                        {item.topic_name}
-                                    </span>
-                                </div>
-                                
-                                {item.status === 'Completed' ? (
-                                    <div className="flex items-center gap-2 text-emerald-500 px-3 py-1 bg-emerald-50 rounded-lg text-[10px] font-black uppercase">
-                                        <CheckCircle2 size={14} /> Completed
-                                    </div>
-                                ) : (
-                                    <div className="text-[10px] font-black text-text-muted uppercase tracking-widest">
-                                        Pending
-                                    </div>
-                                )}
-                            </motion.div>
-                        ))}
-                    </div>
-                </div>
-            );
-        }) : (
+        {!groupedData.length && !experiments.length ? (
+          <div className="p-32 text-center bg-white rounded-[4rem] border-2 border-dashed border-gray-100 flex flex-col items-center">
+              <div className="w-24 h-24 bg-primary/5 text-primary rounded-[2.5rem] flex items-center justify-center mb-8">
+                  <Plus size={48} />
+              </div>
+              <h2 className="text-3xl font-black text-text mb-4">No Syllabus Data</h2>
+              <p className="text-text-muted font-medium max-w-sm mb-10 leading-relaxed">
+                  Upload your syllabus document to start planning and tracking your teaching progress.
+              </p>
+              <button 
+                onClick={() => { setShowUploadModal(true); setUploadStep(0); }}
+                className="px-10 py-5 bg-primary text-white font-bold rounded-2xl shadow-xl shadow-primary/20 hover:bg-primary-dark transition-all active:scale-95 flex items-center gap-3"
+              >
+                  <Upload size={20} />
+                  Upload Syllabus
+              </button>
+          </div>
+        ) : activeTab === 'theory' ? (
+          <div className="space-y-10">
+            {groupedData.map((group, groupIdx) => {
+              const chapterProgress = group.plans.length > 0 
+                  ? (group.plans.filter(p => p.status === 'Completed').length / group.plans.length) * 100 
+                  : 0;
+              return (
+                  <div key={group.chapter.id} className="space-y-4">
+                      <div className="flex items-center justify-between px-2">
+                          <div className="flex items-center gap-3">
+                              <div className="w-10 h-10 rounded-xl bg-gray-900 text-white flex items-center justify-center font-black text-sm">
+                                  {groupIdx + 1}
+                              </div>
+                              <div>
+                                  <h3 className="font-black text-xl text-text leading-tight">{group.chapter.name}</h3>
+                                  <p className="text-xs text-text-muted font-bold uppercase tracking-widest mt-0.5">
+                                      CO: {group.chapter.co_covered} • {group.plans.length} Lectures
+                                  </p>
+                              </div>
+                          </div>
+                          <div className="text-right">
+                              <span className="text-sm font-black text-primary">{Math.round(chapterProgress)}% Done</span>
+                          </div>
+                      </div>
+                      <div className="grid gap-3">
+                          {group.plans.map((item, idx) => (
+                              <motion.div
+                                  key={item.id}
+                                  initial={{ opacity: 0, y: 10 }}
+                                  animate={{ opacity: 1, y: 0 }}
+                                  transition={{ delay: idx * 0.03 }}
+                                  className="bg-white p-4 rounded-2xl border border-gray-100 flex items-center justify-between group hover:border-primary/20 transition-all"
+                              >
+                                  <div className="flex items-center gap-4">
+                                      <div className="text-xs font-black text-text-muted w-8">L{item.lecture_number}</div>
+                                      <div className="h-4 w-[1px] bg-gray-100" />
+                                      <span className="text-sm font-bold text-text group-hover:text-primary transition-colors">
+                                          {item.topic_name}
+                                      </span>
+                                  </div>
+                                  {item.status === 'Completed' ? (
+                                      <div className="flex items-center gap-2 text-emerald-500 px-3 py-1 bg-emerald-50 rounded-lg text-[10px] font-black uppercase">
+                                          <CheckCircle2 size={14} /> Completed
+                                      </div>
+                                  ) : (
+                                      <div className="text-[10px] font-black text-text-muted uppercase tracking-widest">
+                                          Pending
+                                      </div>
+                                  )}
+                              </motion.div>
+                          ))}
+                      </div>
+                  </div>
+              );
+            })}
+          </div>
+        ) : (
           <div className="grid gap-4">
             {experiments.map((exp, idx) => (
               <motion.div 
@@ -549,14 +602,6 @@ const Syllabus = () => {
                 )}
               </motion.div>
             ))}
-          </div>
-        )}
-
-        {((activeTab === 'theory' && groupedData.length === 0) || (activeTab === 'practical' && experiments.length === 0)) && (
-          <div className="py-20 text-center bg-gray-50 rounded-[2.5rem] border-2 border-dashed border-gray-200">
-            <AlertCircle className="mx-auto text-gray-400 mb-2" size={32} />
-            <p className="text-gray-500 font-bold tracking-tight">No {activeTab} syllabus data found.</p>
-            <p className="text-xs text-text-muted mt-1 uppercase font-black">Please upload a {activeTab} syllabus Excel file from the dashboard.</p>
           </div>
         )}
       </div>
@@ -636,7 +681,6 @@ const Syllabus = () => {
               transition={{ type: 'spring', damping: 25, stiffness: 200 }}
               className="absolute inset-0 bg-white flex flex-col"
             >
-              {/* Panel Header */}
               <div className="p-6 md:p-10 border-b border-gray-100 flex items-center justify-between bg-white sticky top-0 z-10">
                 <div>
                   <h2 className="text-2xl md:text-3xl font-black text-text">Manage {activeTab === 'theory' ? 'Syllabus' : 'Experiments'}</h2>
@@ -652,10 +696,8 @@ const Syllabus = () => {
                 </button>
               </div>
 
-              {/* Panel Content */}
               <div className="flex-1 overflow-y-auto p-6 md:p-10 custom-scrollbar">
                 <div className="max-w-4xl mx-auto space-y-10">
-                   {/* Add New Item Section */}
                    <div className={`p-8 ${activeTab === 'theory' ? 'bg-primary/5 border-primary/10' : 'bg-purple-50 border-purple-100'} border-2 border-dashed rounded-[2.5rem] flex flex-col md:flex-row gap-4 items-center`}>
                       <div className={`w-14 h-14 rounded-2xl ${activeTab === 'theory' ? 'bg-primary text-white' : 'bg-purple-600 text-white'} flex items-center justify-center shrink-0`}>
                         <Plus size={24} />
@@ -682,7 +724,6 @@ const Syllabus = () => {
                       </div>
                    </div>
 
-                   {/* List Section */}
                    <div className="space-y-4">
                       <div className="flex items-center justify-between px-2">
                         <h4 className="text-sm font-black text-text-muted uppercase tracking-[0.2em]">Curriculum Overview</h4>
@@ -723,7 +764,6 @@ const Syllabus = () => {
                       </div>
                    </div>
 
-                   {/* Reset Section */}
                    <div className="pt-10 border-t border-gray-100">
                       <div className="p-8 bg-rose-50/50 rounded-[2.5rem] border border-rose-100 flex flex-col md:flex-row items-center justify-between gap-6">
                         <div className="flex items-center gap-4">
@@ -748,8 +788,162 @@ const Syllabus = () => {
           </div>
         )}
       </AnimatePresence>
-    </div>
 
+      {/* SYLLABUS UPLOAD MODAL */}
+      <AnimatePresence>
+        {showUploadModal && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center px-6">
+            <motion.div 
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              onClick={() => !isSubmitting && setShowUploadModal(false)}
+              className="absolute inset-0 bg-text/40 backdrop-blur-sm"
+            />
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 20 }}
+              className="relative w-full max-w-lg bg-white rounded-[2.5rem] p-10 shadow-2xl overflow-hidden"
+            >
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="text-2xl font-black text-text">Upload Syllabus</h3>
+                {uploadStep > 0 && !uploadFile && (
+                  <button 
+                    onClick={() => setUploadStep(prev => prev - 1)}
+                    className="text-xs font-bold text-primary hover:underline"
+                  >
+                    Back to Step {uploadStep}
+                  </button>
+                )}
+              </div>
+              <p className="text-text-muted mb-8 italic text-sm">
+                Step {uploadStep + 1}: {
+                  uploadStep === 0 ? 'Select academic type' :
+                  uploadStep === 1 ? 'Choose the target subject' :
+                  'Upload the document'
+                }
+              </p>
+
+              {uploadFile ? (
+                <UploadPreview 
+                  type="syllabus" 
+                  file={uploadFile} 
+                  subjectId={uploadSubjectId}
+                  subjectType={uploadType}
+                  onClose={() => {
+                    setUploadFile(null);
+                    setShowUploadModal(false);
+                    setUploadStep(0);
+                  }}
+                  onSave={onSaveUpload}
+                />
+              ) : (
+                <div className="space-y-6">
+                  {uploadStep === 0 && (
+                    <div className="grid grid-cols-2 gap-4">
+                      <button 
+                        onClick={() => { setUploadType('theory'); setUploadStep(1); }}
+                        className="flex flex-col items-center gap-4 p-8 border-2 border-gray-100 rounded-[2rem] hover:border-blue-200 hover:bg-blue-50/50 transition-all group"
+                      >
+                        <div className="p-4 bg-blue-50 text-blue-600 rounded-2xl group-hover:scale-110 transition-transform">
+                          <BookOpen size={32} />
+                        </div>
+                        <span className="font-black text-text uppercase tracking-tight">Theory</span>
+                      </button>
+                      <button 
+                        onClick={() => { setUploadType('practical'); setUploadStep(1); }}
+                        className="flex flex-col items-center gap-4 p-8 border-2 border-gray-100 rounded-[2rem] hover:border-purple-200 hover:bg-purple-50/50 transition-all group"
+                      >
+                        <div className="p-4 bg-purple-50 text-purple-600 rounded-2xl group-hover:scale-110 transition-transform">
+                          <FlaskConical size={32} />
+                        </div>
+                        <span className="font-black text-text uppercase tracking-tight">Practical</span>
+                      </button>
+                    </div>
+                  )}
+
+                  {uploadStep === 1 && (
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between mb-4">
+                         <h4 className="font-bold text-text-muted text-xs uppercase tracking-widest">Select Subject</h4>
+                         <button 
+                           onClick={() => setIsAddingSubject(!isAddingSubject)}
+                           className="text-xs font-black text-primary px-3 py-1.5 bg-primary/5 rounded-lg hover:bg-primary/10 transition-all"
+                         >
+                           {isAddingSubject ? 'View List' : '+ Add New'}
+                         </button>
+                      </div>
+
+                      {isAddingSubject ? (
+                        <div className="space-y-4 p-6 bg-gray-50 rounded-2xl border border-gray-100">
+                          <div className="space-y-3">
+                            <input 
+                              type="text" 
+                              placeholder="Subject Name"
+                              value={newSubjectName}
+                              onChange={(e) => setNewSubjectName(e.target.value)}
+                              className="w-full px-4 py-3 rounded-xl border border-gray-200 text-sm"
+                            />
+                            <input 
+                              type="text" 
+                              placeholder="Code (e.g. CS601)"
+                              value={newSubjectCode}
+                              onChange={(e) => setNewSubjectCode(e.target.value)}
+                              className="w-full px-4 py-3 rounded-xl border border-gray-200 text-sm"
+                            />
+                            <button 
+                              onClick={handleCreateSubject}
+                              disabled={isSubmitting}
+                              className="w-full py-3 bg-primary text-white rounded-xl font-bold text-sm"
+                            >
+                              {isSubmitting ? 'Creating...' : 'Create & Proceed'}
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="grid gap-3 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
+                          {filteredUploadSubjects.length > 0 ? filteredUploadSubjects.map(subject => (
+                            <button 
+                              key={subject.id}
+                              onClick={() => { setUploadSubjectId(subject.id); setUploadStep(2); }}
+                              className="flex items-center justify-between p-5 border border-gray-100 rounded-2xl hover:border-primary/30 hover:bg-primary/5 transition-all group text-left"
+                            >
+                              <div>
+                                <p className="font-black text-text">{subject.name}</p>
+                                <p className="text-[10px] font-bold text-text-muted uppercase tracking-widest">{subject.code}</p>
+                              </div>
+                              <Plus size={18} className="text-text-muted group-hover:text-primary transition-colors" />
+                            </button>
+                          )) : (
+                            <div className="p-10 text-center bg-gray-50 rounded-2xl text-sm italic text-text-muted">
+                              No {uploadType} subjects found.
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {uploadStep === 2 && (
+                    <label className="group relative block px-10 py-16 border-2 border-dashed border-gray-200 rounded-[2rem] hover:border-primary/50 hover:bg-primary/5 transition-all text-center cursor-pointer">
+                      <input type="file" className="absolute inset-0 opacity-0 cursor-pointer" onChange={handleFileUpload} />
+                      <div className="flex flex-col items-center gap-4 text-text-muted group-hover:text-primary">
+                        <div className="p-4 bg-gray-50 rounded-2xl group-hover:bg-primary/10 transition-colors">
+                          <Upload size={32} />
+                        </div>
+                        <div>
+                          <p className="font-bold text-lg">Upload Syllabus Document</p>
+                          <p className="text-sm opacity-60 mt-1">Excel formats preferred</p>
+                        </div>
+                      </div>
+                    </label>
+                  )}
+                </div>
+              )}
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+    </div>
   );
 };
 

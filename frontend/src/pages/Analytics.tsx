@@ -7,7 +7,8 @@ import {
   TrendingUp, 
   Sparkles,
   ArrowUpRight,
-  ArrowDownRight
+  ArrowDownRight,
+  BarChart3
 } from 'lucide-react';
 import { 
   ResponsiveContainer, 
@@ -32,7 +33,7 @@ const Analytics = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    analyticsService.getClassAnalytics().then(res => {
+    analyticsService.getDashboard().then(res => {
       setData(res.data);
       setLoading(false);
     });
@@ -92,15 +93,6 @@ const Analytics = () => {
     return ranges;
   }, [data]);
 
-  const passFailData = useMemo(() => {
-    if (!data) return [];
-    const passed = data.student_performances.filter(p => p.percentage >= 40).length;
-    return [
-      { name: 'Passed', value: passed },
-      { name: 'Failed', value: data.total_students - passed },
-    ];
-  }, [data]);
-
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
@@ -112,7 +104,18 @@ const Analytics = () => {
   if (!data) return <div className="p-10 text-center text-text-muted">No analytics data available yet.</div>;
 
   return (
-    <div className="space-y-10 pb-20">
+    <div className="space-y-10 pb-12">
+      {/* 1. STANDARD HEADER */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-8">
+        <div className="space-y-1">
+          <div className="flex items-center gap-2 text-primary font-bold text-xs uppercase tracking-widest mb-1">
+            <BarChart3 size={14} /> Performance Analytics
+          </div>
+          <h1 className="text-4xl font-black text-text italic tracking-tighter">Insights Dashboard</h1>
+          <p className="text-text-muted font-medium">Track class performance, student trends, and academic excellence.</p>
+        </div>
+      </div>
+
       {/* Overview Cards */}
       <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {statsCards.map((card, i) => (

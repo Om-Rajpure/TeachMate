@@ -1,15 +1,13 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
-  Plus, Clock, Users, BookOpen, 
-  AlertCircle, Lightbulb, Upload, CheckCircle2, XCircle
+  Plus, Clock, Users, BookOpen, Calendar, BarChart3,
+  AlertCircle, Lightbulb, CheckCircle2, XCircle, ChevronRight
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { lectureService, syllabusService, notificationService, subjectService } from '../services/api';
+import { lectureService, syllabusService, notificationService } from '../services/api';
 import { useDashboardLogic } from '../hooks/useDashboardLogic';
-import UploadPreview from '../components/UploadPreview';
-import TimetableCard from '../components/TimetableCard';
-import type { Timetable, DashboardStats, LecturePlan, Notification, Subject, Experiment } from '../types';
+import type { Timetable, DashboardStats, LecturePlan, Notification, Experiment } from '../types';
 import { toast } from 'react-hot-toast';
 
 
@@ -23,38 +21,25 @@ const Dashboard = () => {
   const [loading, setLoading] = useState(true);
 
   // UI States
-  const [showUploadModal, setShowUploadModal] = useState<'timetable' | 'syllabus' | null>(null);
-  const [uploadStep, setUploadStep] = useState(0); // 0: Type, 1: Subject, 2: Upload
-  const [uploadType, setUploadType] = useState<'theory' | 'practical'>('theory');
-  const [selectedSubjectId, setSelectedSubjectId] = useState<number | null>(null);
-  const [subjects, setSubjects] = useState<Subject[]>([]);
-  const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [isLectureExpanded, setIsLectureExpanded] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [topicTaught, setTopicTaught] = useState('');
 
-  // New Subject Form States
-  const [isAddingSubject, setIsAddingSubject] = useState(false);
-  const [newSubjectName, setNewSubjectName] = useState('');
-  const [newSubjectCode, setNewSubjectCode] = useState('');
-
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [statsRes, todayRes, plansRes, expsRes, notifRes, subjectsRes] = await Promise.all([
+      const [statsRes, todayRes, plansRes, expsRes, notifRes] = await Promise.all([
         lectureService.getStats(),
         lectureService.getToday(),
         syllabusService.getLecturePlans(),
         syllabusService.getExperiments(),
-        notificationService.getAll(),
-        lectureService.getSubjects()
+        notificationService.getAll()
       ]);
       setStats(statsRes.data);
       setTodayLectures(todayRes.data);
       setLecturePlans(plansRes.data);
       setExperiments(expsRes.data);
       setNotifications(notifRes.data.slice(0, 4));
-      setSubjects(subjectsRes.data);
     } catch (error) {
       console.error('Dashboard fetch error:', error);
       toast.error('Failed to load dashboard data');
@@ -76,58 +61,6 @@ const Dashboard = () => {
       setTopicTaught(syllabusSuggestion);
     }
   }, [syllabusSuggestion, topicTaught]);
-
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setUploadFile(file);
-    }
-  };
-
-  const handleCreateSubject = async () => {
-    if (!newSubjectName || !newSubjectCode) {
-      toast.error('Please fill all fields');
-      return;
-    }
-    setIsSubmitting(true);
-    const payload = {
-      name: newSubjectName,
-      code: newSubjectCode,
-      subject_type: uploadType
-    };
-    console.log("Submitting subject...", payload);
-    try {
-      const res = await subjectService.create(payload);
-      setSubjects(prev => [...prev, res.data]);
-      setSelectedSubjectId(res.data.id);
-      setUploadStep(2);
-      setIsAddingSubject(false);
-      setNewSubjectName('');
-      setNewSubjectCode('');
-      toast.success('Subject created and selected!');
-    } catch (error) {
-      toast.error('Failed to create subject');
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const onSaveUpload = async () => {
-    setIsSubmitting(true);
-    try {
-      toast.success(`${showUploadModal === 'timetable' ? 'Timetable' : 'Syllabus'} synced successfully!`);
-      setShowUploadModal(null);
-      setUploadFile(null);
-      setUploadStep(0);
-      setUploadType('theory');
-      setSelectedSubjectId(null);
-      fetchData();
-    } catch (error) {
-      toast.error('Failed to sync data');
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
 
   const handleStartLecture = async () => {
     if (!activeLecture) return;
@@ -175,8 +108,6 @@ const Dashboard = () => {
       default: return 'bg-blue-50 text-blue-600 border-blue-100';
     }
   };
-
-  const filteredSubjects = subjects.filter(s => (s as any).subject_type === uploadType);
 
   return (
     <div className="space-y-8 pb-10">
@@ -293,8 +224,13 @@ const Dashboard = () => {
                   {nextLecture ? `Next: ${nextLecture.subject_details?.name} at ${nextLecture.start_time.slice(0, 5)}` : 'You are all set for today!'}
                 </p>
               </div>
-              {/* Only show view timetable button if it actually exists */}
-              <TimetableCard onUploadClick={() => setShowUploadModal('timetable')} isCompact />
+              
+              <button 
+                onClick={() => navigate('/app/timetable')}
+                className="px-6 py-3 bg-primary text-white font-bold rounded-2xl shadow-lg shadow-primary/20 hover:bg-primary-dark transition-all active:scale-95"
+              >
+                View Timetable
+              </button>
             </motion.div>
           )}
         </AnimatePresence>
@@ -306,22 +242,26 @@ const Dashboard = () => {
         <section className="lg:col-span-2 space-y-4">
           <h3 className="text-lg font-bold text-text ml-2">Quick Actions</h3>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-            <TimetableCard onUploadClick={() => setShowUploadModal('timetable')} />
             {[
-              { label: 'Syllabus', icon: BookOpen, color: 'text-emerald-600', bg: 'bg-emerald-50', action: () => { setShowUploadModal('syllabus'); setUploadStep(0); } },
-              { label: 'Add Students', icon: Users, color: 'text-rose-600', bg: 'bg-rose-50', action: () => navigate('/app/students/select-subject') },
-              { label: 'Attendance', icon: CheckCircle2, color: 'text-amber-600', bg: 'bg-amber-50', action: () => navigate('/app/attendance') },
-              { label: 'Analytics', icon: BarChart3, color: 'text-indigo-600', bg: 'bg-indigo-50', action: () => navigate('/app/analytics') },
+              { label: 'Timetable', desc: 'Upload and view your weekly schedule', icon: Calendar, color: 'text-purple-600', bg: 'bg-purple-50', path: '/app/timetable' },
+              { label: 'Syllabus', desc: 'Upload and manage syllabus', icon: BookOpen, color: 'text-emerald-600', bg: 'bg-emerald-50', path: '/app/syllabus' },
+              { label: 'Students', desc: 'Manage students for each subject', icon: Users, color: 'text-rose-600', bg: 'bg-rose-50', path: '/app/students' },
+              { label: 'Attendance', desc: 'Mark and track attendance', icon: CheckCircle2, color: 'text-amber-600', bg: 'bg-amber-50', path: '/app/attendance' },
+              { label: 'Analytics', desc: 'Track performance and insights', icon: BarChart3, color: 'text-indigo-600', bg: 'bg-indigo-50', path: '/app/analytics' },
             ].map((action) => (
               <button 
                 key={action.label}
-                onClick={action.action}
-                className="group flex flex-col items-center justify-center p-6 bg-white border border-gray-100 rounded-[2rem] hover:shadow-xl hover:shadow-primary/5 hover:border-primary/20 transition-all duration-300"
+                onClick={() => navigate(action.path)}
+                className="group flex flex-col items-center justify-center p-6 bg-white border border-gray-100 rounded-[2rem] hover:shadow-xl hover:shadow-primary/5 hover:border-primary/20 transition-all duration-300 text-center"
               >
                 <div className={`${action.bg} ${action.color} p-4 rounded-2xl mb-3 group-hover:scale-110 transition-transform`}>
                   <action.icon size={24} />
                 </div>
                 <span className="text-sm font-bold text-text">{action.label}</span>
+                <span className="text-[10px] text-text-muted mt-1 font-medium leading-tight opacity-70 group-hover:opacity-100 transition-opacity">{action.desc}</span>
+                <div className="flex items-center gap-1 text-[10px] font-bold text-primary mt-2 opacity-0 -translate-y-1 group-hover:opacity-100 group-hover:translate-y-0 transition-all">
+                  Open <ChevronRight size={12} />
+                </div>
               </button>
             ))}
           </div>
@@ -440,200 +380,11 @@ const Dashboard = () => {
         </section>
       </div>
 
-      {/* MOCK UPLOAD MODAL */}
-      <AnimatePresence>
-        {showUploadModal && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center px-6">
-            <motion.div 
-              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              onClick={() => !isSubmitting && setShowUploadModal(null)}
-              className="absolute inset-0 bg-text/40 backdrop-blur-sm"
-            />
-            <motion.div 
-              initial={{ scale: 0.9, opacity: 0, y: 20 }}
-              animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.9, opacity: 0, y: 20 }}
-              className="relative w-full max-w-lg bg-white rounded-[2.5rem] p-10 shadow-2xl overflow-hidden"
-            >
-              <div className="flex items-center justify-between mb-2">
-                <h3 className="text-2xl font-black text-text">
-                  Upload {showUploadModal === 'timetable' ? 'Timetable' : 'Syllabus'}
-                </h3>
-                {showUploadModal === 'syllabus' && uploadStep > 0 && !uploadFile && (
-                  <button 
-                    onClick={() => setUploadStep(prev => prev - 1)}
-                    className="text-xs font-bold text-primary hover:underline"
-                  >
-                    Back to Step {uploadStep}
-                  </button>
-                )}
-              </div>
-              {showUploadModal === 'syllabus' && (
-                <p className="text-text-muted mb-8 italic text-sm">
-                  Step {uploadStep + 1}: {
-                    uploadStep === 0 ? 'Select academic type' :
-                    uploadStep === 1 ? 'Choose the target subject' :
-                    'Upload the document'
-                  }
-                </p>
-              )}
-              {showUploadModal === 'timetable' && !uploadFile && (
-                <p className="text-text-muted mb-8 italic text-sm">
-                  Upload your weekly schedule in Excel or PDF format
-                </p>
-              )}
 
-              {uploadFile ? (
-                <UploadPreview 
-                  type={showUploadModal} 
-                  file={uploadFile} 
-                  subjectId={selectedSubjectId}
-                  subjectType={uploadType}
-                  onClose={() => {
-                    setUploadFile(null);
-                    setShowUploadModal(null);
-                    setUploadStep(0);
-                  }}
-                  onSave={onSaveUpload}
-                />
-              ) : showUploadModal === 'syllabus' ? (
-                <div className="space-y-6">
-                  {uploadStep === 0 && (
-                    <div className="grid grid-cols-2 gap-4">
-                      <button 
-                        onClick={() => { setUploadType('theory'); setUploadStep(1); }}
-                        className="flex flex-col items-center gap-4 p-8 border-2 border-gray-100 rounded-[2rem] hover:border-blue-200 hover:bg-blue-50/50 transition-all group"
-                      >
-                        <div className="p-4 bg-blue-50 text-blue-600 rounded-2xl group-hover:scale-110 transition-transform">
-                          <BookOpen size={32} />
-                        </div>
-                        <span className="font-black text-text uppercase tracking-tight">Theory</span>
-                      </button>
-                      <button 
-                        onClick={() => { setUploadType('practical'); setUploadStep(1); }}
-                        className="flex flex-col items-center gap-4 p-8 border-2 border-gray-100 rounded-[2rem] hover:border-purple-200 hover:bg-purple-50/50 transition-all group"
-                      >
-                        <div className="p-4 bg-purple-50 text-purple-600 rounded-2xl group-hover:scale-110 transition-transform">
-                          <Plus size={32} />
-                        </div>
-                        <span className="font-black text-text uppercase tracking-tight">Practical</span>
-                      </button>
-                    </div>
-                  )}
-
-                  {uploadStep === 1 && (
-                    <div className="space-y-4">
-                      <div className="flex items-center justify-between mb-4">
-                         <h4 className="font-bold text-text-muted text-xs uppercase tracking-widest">Select Subject</h4>
-                         <button 
-                           onClick={() => setIsAddingSubject(!isAddingSubject)}
-                           className="text-xs font-black text-primary px-3 py-1.5 bg-primary/5 rounded-lg hover:bg-primary/10 transition-all"
-                         >
-                           {isAddingSubject ? 'View List' : '+ Add New Subject'}
-                         </button>
-                      </div>
-
-                      {isAddingSubject ? (
-                        <motion.div 
-                          initial={{ opacity: 0, y: 10 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          className="space-y-4 p-6 bg-gray-50 rounded-2xl border border-gray-100"
-                        >
-                          <div className="space-y-3">
-                            <input 
-                              type="text" 
-                              placeholder="Subject Name (e.g. Artificial Intelligence)"
-                              value={newSubjectName}
-                              onChange={(e) => setNewSubjectName(e.target.value)}
-                              className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-primary/20 outline-none text-sm"
-                            />
-                            <input 
-                              type="text" 
-                              placeholder="Subject Code (e.g. CS601)"
-                              value={newSubjectCode}
-                              onChange={(e) => setNewSubjectCode(e.target.value)}
-                              className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-primary/20 outline-none text-sm"
-                            />
-                            <div className="pt-2">
-                              <button 
-                                onClick={handleCreateSubject}
-                                disabled={isSubmitting}
-                                className="w-full py-3 bg-primary text-white rounded-xl font-bold text-sm shadow-lg shadow-primary/20 hover:bg-primary-dark transition-all"
-                              >
-                                {isSubmitting ? 'Creating...' : 'Create & Proceed'}
-                              </button>
-                            </div>
-                          </div>
-                        </motion.div>
-                      ) : (
-                        <div className="grid gap-3 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
-                          {filteredSubjects.length > 0 ? filteredSubjects.map(subject => (
-                            <button 
-                              key={subject.id}
-                              onClick={() => { setSelectedSubjectId(subject.id); setUploadStep(2); }}
-                              className="flex items-center justify-between p-5 border border-gray-100 rounded-2xl hover:border-primary/30 hover:bg-primary/5 transition-all group text-left"
-                            >
-                              <div>
-                                <p className="font-black text-text">{subject.name}</p>
-                                <p className="text-[10px] font-bold text-text-muted uppercase tracking-widest">{subject.code}</p>
-                              </div>
-                              <Plus size={18} className="text-text-muted group-hover:text-primary transition-colors" />
-                            </button>
-                          )) : (
-                            <div className="p-10 text-center bg-gray-50 rounded-2xl text-sm italic text-text-muted">
-                              No {uploadType} subjects found. Add a subject to continue.
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {uploadStep === 2 && (
-                    <label className="group relative block px-10 py-16 border-2 border-dashed border-gray-200 rounded-[2rem] hover:border-primary/50 hover:bg-primary/5 transition-all text-center cursor-pointer">
-                      <input type="file" className="absolute inset-0 opacity-0 cursor-pointer" onChange={handleFileUpload} />
-                      <div className="flex flex-col items-center gap-4 text-text-muted group-hover:text-primary">
-                        <div className="p-4 bg-gray-50 rounded-2xl group-hover:bg-primary/10 transition-colors">
-                          <Upload size={32} />
-                        </div>
-                        <div>
-                          <p className="font-bold text-lg">Upload Syllabus Document</p>
-                          <p className="text-sm opacity-60 mt-1">Excel formats preferred</p>
-                        </div>
-                      </div>
-                    </label>
-                  )}
-                </div>
-              ) : (
-                <div className="space-y-6">
-                  <label className="group relative block px-10 py-16 border-2 border-dashed border-gray-200 rounded-[2rem] hover:border-primary/50 hover:bg-primary/5 transition-all text-center cursor-pointer">
-                    <input type="file" className="absolute inset-0 opacity-0 cursor-pointer" onChange={handleFileUpload} />
-                    <div className="flex flex-col items-center gap-4 text-text-muted group-hover:text-primary">
-                      <div className="p-4 bg-gray-50 rounded-2xl group-hover:bg-primary/10 transition-colors">
-                        <Upload size={32} />
-                      </div>
-                      <div>
-                        <p className="font-bold text-lg">Click or drag to upload</p>
-                        <p className="text-sm opacity-60 mt-1">Excel or PDF formats supported</p>
-                      </div>
-                    </div>
-                  </label>
-                </div>
-              )}
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
 
     </div>
   );
 };
 
-// BarChart3 icon component since it was missing from lucide or needed a specific import
-const BarChart3 = ({ size, className }: { size? : number, className?: string }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-    <path d="M12 20V10"/><path d="M18 20V4"/><path d="M6 20v-4"/>
-  </svg>
-);
 
 export default Dashboard;

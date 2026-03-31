@@ -6,7 +6,7 @@ import {
   CalendarDays, Loader2, AlertTriangle, Upload
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { attendanceService, subjectService, studentService, divisionService, batchService, syllabusService } from '../services/api';
+import { attendanceService, subjectService, studentService, divisionService, batchService } from '../services/api';
 import type { Student, Subject, Division, Batch } from '../types';
 import { toast } from 'react-hot-toast';
 
@@ -280,35 +280,33 @@ const Attendance = () => {
   };
 
   return (
-    <div className="max-w-7xl mx-auto space-y-8 pb-20 px-4 md:px-0">
-      {/* Header & Mode Toggle */}
-      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+    <div className="space-y-10 pb-12">
+      {/* 1. STANDARD HEADER & ACTIONS */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-8">
         <div className="space-y-1">
-          <h1 className="text-3xl md:text-4xl font-black text-text italic">
-             {mode === 'take' ? 'Live Attendance' : 'Attendance Analysis'}
-          </h1>
-          <p className="text-text-muted font-bold tracking-tight opacity-70">
-            {mode === 'take' ? 'Mark presence for the current or past sessions' : 'Explore patterns and student performance'}
-          </p>
+          <div className="flex items-center gap-2 text-primary font-bold text-xs uppercase tracking-widest mb-1">
+            <CheckCircle2 size={14} /> Attendance Tracking
+          </div>
+          <h1 className="text-4xl font-black text-text italic tracking-tighter">Attendance Hub</h1>
+          <p className="text-text-muted font-medium">Capture real-time attendance or browse historical academic records.</p>
         </div>
 
-        <div className="flex p-1.5 bg-gray-100 rounded-2xl w-full md:w-fit shadow-inner">
-          <button 
-            onClick={() => setMode('take')}
-            className={`flex-1 md:w-40 py-3 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all flex items-center justify-center gap-2 ${
-              mode === 'take' ? 'bg-white text-primary shadow-sm' : 'text-text-muted hover:text-text'
-            }`}
-          >
-            <Users size={14} /> Take
-          </button>
-          <button 
-            onClick={() => setMode('view')}
-            className={`flex-1 md:w-40 py-3 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all flex items-center justify-center gap-2 ${
-              mode === 'view' ? 'bg-white text-primary shadow-sm' : 'text-text-muted hover:text-text'
-            }`}
-          >
-            <History size={14} /> Records
-          </button>
+        <div className="flex flex-wrap items-center gap-3">
+          {/* Primary Mode Toggle */}
+          <div className="flex bg-gray-50 p-1 rounded-2xl border border-gray-100 shadow-inner">
+            <button 
+                onClick={() => setMode('take')}
+                className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${mode === 'take' ? 'bg-primary text-white shadow-lg shadow-primary/20' : 'text-text-muted hover:text-text'}`}
+            >
+                <Users size={14} /> Take
+            </button>
+            <button 
+                onClick={() => setMode('view')}
+                className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${mode === 'view' ? 'bg-primary text-white shadow-lg shadow-primary/20' : 'text-text-muted hover:text-text'}`}
+            >
+                <History size={14} /> Records
+            </button>
+          </div>
         </div>
       </div>
 
