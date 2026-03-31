@@ -295,7 +295,7 @@ class Marks(models.Model):
             
             def get_assign_total(assign_data):
                 if isinstance(assign_data, dict):
-                    return sum(float(v) for k, v in assign_data.items() if k in ['p1', 'p2', 'p3'])
+                    return sum(float(v) for k, v in assign_data.items() if k in ['a', 'b', 'c'])
                 return float(assign_data or 0)
 
             a1 = get_assign_total(assigns.get('assignment_1', 0))

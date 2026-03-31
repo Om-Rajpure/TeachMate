@@ -94,8 +94,8 @@ const Marks = () => {
             initialMarks[s.id] = { 
               experiments: exps, 
               assignments: { 
-                assignment_1: { p1: 0, p2: 0, p3: 0 }, 
-                assignment_2: { p1: 0, p2: 0, p3: 0 } 
+                assignment_1: { a: 0, b: 0, c: 0 }, 
+                assignment_2: { a: 0, b: 0, c: 0 } 
               },
               mini_project: 0
             };
@@ -143,7 +143,7 @@ const Marks = () => {
           studentMarks.experiments[field][part] = numVal;
         } else if (block === 'assignments' && field && part) {
           if (!studentMarks.assignments) studentMarks.assignments = {};
-          if (!studentMarks.assignments[field]) studentMarks.assignments[field] = { p1: 0, p2: 0, p3: 0 };
+          if (!studentMarks.assignments[field]) studentMarks.assignments[field] = { a: 0, b: 0, c: 0 };
           studentMarks.assignments[field][part] = numVal;
         } else if (block === 'mini_project') {
           studentMarks.mini_project = numVal;
@@ -180,7 +180,7 @@ const Marks = () => {
 
     const getAssignTotal = (assign: any) => {
       if (typeof assign === 'object') {
-        return (Number(assign.p1) || 0) + (Number(assign.p2) || 0) + (Number(assign.p3) || 0);
+        return (Number(assign.a) || 0) + (Number(assign.b) || 0) + (Number(assign.c) || 0);
       }
       return Number(assign) || 0;
     };
@@ -350,41 +350,39 @@ const Marks = () => {
                             </th>
                           ))}
                           
-                          <th className="px-8 py-5 text-center text-[10px] font-black text-primary uppercase tracking-widest bg-primary/5 border-x-2 border-primary/10 min-w-[140px]">
+                          <th className="px-8 py-5 text-center text-[10px] font-black text-primary uppercase tracking-widest bg-primary/5 border-r-4 border-gray-200 min-w-[140px]">
                             Experiments Avg
                           </th>
                           
                           {marksConfig?.has_assignments && (
                             <>
-                              <th className="px-4 py-3 text-center border-l-4 border-emerald-200 bg-emerald-50/30 min-w-[160px]">
+                              <th className="px-4 py-3 text-center bg-emerald-50/30 min-w-[160px]">
                                 <div className="text-[10px] font-black text-emerald-700 uppercase tracking-widest mb-1">Assignment 1</div>
                                 <div className="flex justify-around text-[8px] font-black text-emerald-600/60 px-2">
-                                  <span title="Part 1 (2)">P1</span>
-                                  <span title="Part 2 (2)">P2</span>
-                                  <span title="Part 3 (1)">P3</span>
+                                  <span title="Part A (2)">A</span>
+                                  <span title="Part B (2)">B</span>
+                                  <span title="Part C (1)">C</span>
                                   <span className="text-emerald-700 font-bold">∑</span>
                                 </div>
                               </th>
                               <th className="px-4 py-3 text-center border-x border-emerald-100 bg-emerald-50/30 min-w-[160px]">
                                 <div className="text-[10px] font-black text-emerald-700 uppercase tracking-widest mb-1">Assignment 2</div>
                                 <div className="flex justify-around text-[8px] font-black text-emerald-600/60 px-2">
-                                  <span title="Part 1 (2)">P1</span>
-                                  <span title="Part 2 (2)">P2</span>
-                                  <span title="Part 3 (1)">P3</span>
+                                  <span title="Part A (2)">A</span>
+                                  <span title="Part B (2)">B</span>
+                                  <span title="Part C (1)">C</span>
                                   <span className="text-emerald-700 font-bold">∑</span>
                                 </div>
                               </th>
-                              <th className="px-8 py-5 text-center text-[10px] font-black text-emerald-800 uppercase tracking-widest bg-emerald-100/50 min-w-[120px]">Assign Avg</th>
+                              <th className="px-8 py-5 text-center text-[10px] font-black text-white bg-emerald-600 uppercase tracking-widest sticky right-0 z-30 shadow-[-10px_0_20px_rgba(0,0,0,0.1)] min-w-[150px]">
+                                Assignments Avg
+                              </th>
                             </>
                           )}
                           
                           {marksConfig?.has_mini_project && (
                             <th className="px-6 py-5 text-center text-[10px] font-black text-purple-600 uppercase tracking-widest bg-purple-50/30 border-l border-purple-100">Mini Project</th>
                           )}
-                          
-                          <th className="px-8 py-5 text-center text-[10px] font-black text-white bg-primary uppercase tracking-widest sticky right-0 z-30 shadow-[-10px_0_20px_rgba(0,0,0,0.1)] min-w-[150px]">
-                            Final Total
-                          </th>
                         </>
                       )}
                     </tr>
@@ -455,23 +453,23 @@ const Marks = () => {
                                 );
                               })}
                               
-                              <td className="px-8 py-6 text-center font-black text-primary bg-primary/5 border-x-2 border-primary/10 shadow-inner">
+                              <td className="px-8 py-6 text-center font-black text-primary bg-primary/5 border-r-4 border-gray-100 shadow-inner">
                                 {(totals as any).expAvg.toFixed(1)}
                               </td>
                               
                               {marksConfig?.has_assignments && (
                                 <>
                                   {[ 'assignment_1', 'assignment_2' ].map((field, idx) => {
-                                    const aParts = m.assignments?.[field] || { p1: 0, p2: 0, p3: 0 };
-                                    const aTotal = (Number(aParts.p1) || 0) + (Number(aParts.p2) || 0) + (Number(aParts.p3) || 0);
+                                    const aParts = m.assignments?.[field] || { a: 0, b: 0, c: 0 };
+                                    const aTotal = (Number(aParts.a) || 0) + (Number(aParts.b) || 0) + (Number(aParts.c) || 0);
 
                                     return (
-                                      <td key={field} className={`px-2 py-6 text-center bg-emerald-50/10 ${idx === 0 ? 'border-l-4 border-emerald-200' : 'border-x border-emerald-100'}`}>
+                                      <td key={field} className={`px-2 py-6 text-center bg-emerald-50/10 ${idx === 0 ? '' : 'border-x border-emerald-100'}`}>
                                         <div className="flex items-center justify-center gap-1">
                                           {[
-                                            { key: 'p1', max: 2 },
-                                            { key: 'p2', max: 2 },
-                                            { key: 'p3', max: 1 }
+                                            { key: 'a', max: 2 },
+                                            { key: 'b', max: 2 },
+                                            { key: 'c', max: 1 }
                                           ].map(part => (
                                             <input 
                                               key={part.key}
@@ -490,7 +488,7 @@ const Marks = () => {
                                       </td>
                                     );
                                   })}
-                                  <td className="px-8 py-6 text-center font-black text-emerald-800 bg-emerald-100/20">
+                                  <td className="px-8 py-6 text-center font-black text-2xl text-emerald-700 bg-emerald-50/50 sticky right-0 z-20 shadow-[-10px_0_20px_rgba(0,0,0,0.05)] border-l-2 border-emerald-200">
                                     {totals.assignAvg.toFixed(1)}
                                   </td>
                                 </>
@@ -506,10 +504,6 @@ const Marks = () => {
                                   />
                                 </td>
                               )}
-
-                              <td className="px-8 py-6 text-center font-black text-2xl text-primary bg-primary/5 sticky right-0 z-20 shadow-[-10px_0_20px_rgba(0,0,0,0.05)] border-l-2 border-primary/20">
-                                {totals.overall}
-                              </td>
                             </>
                           )}
                         </tr>
