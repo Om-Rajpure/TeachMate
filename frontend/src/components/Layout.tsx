@@ -3,7 +3,7 @@ import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { 
   LayoutDashboard, Users, User, 
   CheckSquare, ListChecks, BarChart3, 
-  Bell, LogOut, Calendar
+  Bell, LogOut, Calendar, GraduationCap
 } from 'lucide-react';
 import { Toaster } from 'react-hot-toast';
 import { notificationService } from '../services/api';
@@ -25,6 +25,7 @@ const Sidebar = () => {
     { name: 'Timetable', icon: Calendar, path: '/app/timetable' },
     { name: 'Students', icon: Users, path: '/app/students' },
     { name: 'Attendance', icon: CheckSquare, path: '/app/attendance' },
+    { name: 'Marks', icon: GraduationCap, path: '/app/marks' },
     { name: 'Syllabus', icon: ListChecks, path: '/app/syllabus' },
     { name: 'Analytics', icon: BarChart3, path: '/app/analytics' },
   ];
@@ -85,9 +86,8 @@ const MobileNav = () => {
     { name: 'Home', icon: LayoutDashboard, path: '/app/dashboard' },
     { name: 'Time', icon: Calendar, path: '/app/timetable' },
     { name: 'Students', icon: Users, path: '/app/students' },
-    { name: 'Attendance', icon: CheckSquare, path: '/app/attendance' },
-    { name: 'Syllabus', icon: ListChecks, path: '/app/syllabus' },
-    { name: 'Stats', icon: BarChart3, path: '/app/analytics' },
+    { name: 'Attend', icon: CheckSquare, path: '/app/attendance' },
+    { name: 'Analytics', icon: BarChart3, path: '/app/analytics' },
   ];
 
   return (
@@ -137,13 +137,14 @@ const MobileNav = () => {
                     : pathname.startsWith('/app/students') ? 'Student Directory'
                     : pathname === '/app/attendance' ? 'Attendance Tracking'
                     : pathname === '/app/syllabus' ? 'Syllabus Planner'
+                    : pathname === '/app/marks' ? 'Marks Management'
                     : pathname === '/app/analytics' ? 'Performance Insights'
                     : pathname === '/app/resources' ? 'Resource Center'
                     : pathname === '/app/notifications' ? 'Notifications'
                     : 'TeachMate';
   
     return (
-      <header className="sticky top-0 bg-background/80 backdrop-blur-md z-10 px-6 py-5 lg:px-10 border-b border-gray-100 lg:border-none flex items-center justify-between">
+      <header className="sticky top-0 bg-background/80 backdrop-blur-md z-10 px-4 py-5 lg:px-10 border-b border-gray-100 lg:border-none flex items-center justify-between overflow-x-hidden">
         <h1 className="text-xl lg:text-2xl font-bold text-text">{pageTitle}</h1>
         <div className="flex items-center gap-6">
           <NavLink to="/app/notifications" className="relative p-2 hover:bg-gray-100 rounded-xl transition-colors text-text-muted hover:text-primary">
@@ -169,9 +170,9 @@ const MobileNav = () => {
     return (
       <div className="flex min-h-screen bg-background text-text selection:bg-primary/10">
         <Sidebar />
-        <main className="flex-1 pb-24 lg:pb-0 scroll-smooth">
+        <main className="flex-1 pb-24 lg:pb-0 scroll-smooth overflow-x-hidden">
           <Header />
-          <div className="p-6 lg:p-10 max-w-7xl mx-auto">
+          <div className="p-4 lg:p-10 max-w-screen-xl mx-auto overflow-x-hidden">
             <Outlet />
           </div>
         </main>

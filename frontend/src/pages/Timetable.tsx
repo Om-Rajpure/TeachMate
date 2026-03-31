@@ -12,7 +12,7 @@ const Timetable: React.FC = () => {
   const [structuredTimetable, setStructuredTimetable] = useState<Record<string, TimetableType[]>>({});
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
-  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 640);
   
   // Upload States
   const [showUploadModal, setShowUploadModal] = useState(false);
@@ -20,7 +20,7 @@ const Timetable: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
-    const handleResize = () => setIsMobile(window.innerWidth < 768);
+    const handleResize = () => setIsMobile(window.innerWidth < 640);
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);

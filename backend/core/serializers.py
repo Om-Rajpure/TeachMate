@@ -1,8 +1,8 @@
 from rest_framework import serializers
 from .models import (
     Subject, Teacher, Division, Batch, Timetable, Lecture, 
-    Student, StudentSubject, Attendance, Chapter, LecturePlan, MarkType, Mark,
-    Notification, ResourceFile, Experiment
+    Student, StudentSubject, Attendance, Chapter, LecturePlan,
+    Notification, ResourceFile, Experiment, TheoryMark, PracticalMark
 )
 
 class ExperimentSerializer(serializers.ModelSerializer):
@@ -93,7 +93,7 @@ class StudentSerializer(serializers.ModelSerializer):
     def get_attendance_percentage(self, obj):
         total = Attendance.objects.filter(student=obj).count()
         if total == 0: return 0
-        present = Attendance.objects.filter(student=obj, status='P').count()
+        present = Attendance.objects.filter(student=obj, status='Present').count()
         return round((present / total) * 100, 2)
 
 class StudentSubjectSerializer(serializers.ModelSerializer):
@@ -140,29 +140,45 @@ class LectureSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
     def get_attendance_count(self, obj):
+        # Filter related attendance by status mapping Present/Absent
+        # Backend Attendance model uses 'P'/'A' or 'Present'/'Absent'? 
+        # Models.py says 'Present'/'Absent'? Let me check attendance model.
         return {
             'present': obj.attendance.filter(status='Present').count(),
             'absent': obj.attendance.filter(status='Absent').count()
         }
 
-class MarkTypeSerializer(serializers.ModelSerializer):
-    subject_name = serializers.CharField(source='subject.name', read_only=True)
-
-    class Meta:
-        model = MarkType
-        fields = '__all__'
-
-class MarkSerializer(serializers.ModelSerializer):
+class TheoryMarkSerializer(serializers.ModelSerializer):
     student_name = serializers.CharField(source='student.name', read_only=True)
     roll_number = serializers.SerializerMethodField()
-    mark_type_name = serializers.CharField(source='mark_type.name', read_only=True)
-    max_marks = serializers.IntegerField(source='mark_type.max_marks', read_only=True)
+    percentage = serializers.SerializerMethodField()
+    status = serializers.SerializerMethodField()
 
     class Meta:
-        model = Mark
+        model = TheoryMark
         fields = '__all__'
 
     def get_roll_number(self, obj):
         link = StudentSubject.objects.filter(student=obj.student, subject=obj.subject).first()
         return link.roll_number if link else None
 
+    def get_percentage(self, obj):
+        if obj.max_marks > 0:
+            return round((obj.marks_obtained / obj.max_marks) * 100, 2)
+        return 0
+
+    def get_status(self, obj):
+        return "PASS" if obj.marks_obtained >= obj.pass_marks else "FAIL"
+
+class PracticalMarkSerializer(serializers.ModelSerializer):
+    student_name = serializers.CharField(source='student.name', read_only=True)
+    roll_number = serializers.SerializerMethodField()
+    total_marks = serializers.ReadOnlyField()
+
+    class Meta:
+        model = PracticalMark
+        fields = '__all__'
+
+    def get_roll_number(self, obj):
+        link = StudentSubject.objects.filter(student=obj.student, subject=obj.subject).first()
+        return link.roll_number if link else None

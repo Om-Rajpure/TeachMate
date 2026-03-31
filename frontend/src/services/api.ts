@@ -138,14 +138,47 @@ export const syllabusService = {
 };
 
 export const markService = {
-  getTypes: () => api.get<any[]>('/mark-types/'),
-  getAll: (subjectId: number) => api.get<any[]>(`/marks/?subject=${subjectId}`),
-  add: (data: any) => api.post('/marks/', data),
+  getTheory: (params: { subject?: number; exam_type?: string; student?: number }) => {
+    const query = new URLSearchParams(params as any).toString();
+    return api.get(`/marks/theory/?${query}`);
+  },
+  saveTheory: (data: {
+    subject_id: number;
+    exam_type: string;
+    max_marks: number;
+    pass_marks: number;
+    date: string;
+    marks: { student_id: number; marks_obtained: number }[];
+    division_id: number;
+    year?: string;
+    branch?: string;
+  }) => api.post('/marks/theory/save/', data),
+  
+  getPractical: (params: { subject?: number; division?: number; batch?: number }) => {
+    const query = new URLSearchParams(params as any).toString();
+    return api.get(`/marks/practical/?${query}`);
+  },
+  savePractical: (data: {
+    subject_id: number;
+    division_id: number;
+    batch_id?: number;
+    marks: any[];
+  }) => api.post('/marks/practical/save/', data),
+
+  upload: (data: FormData) => api.post('/marks/upload/', data, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  }),
 };
 
 export const analyticsService = {
   getDashboard: () => api.get('/analytics/dashboard/'),
   getSubject: (id: number) => api.get(`/analytics/subject/${id}/`),
+  getOverview: () => api.get('/analytics/overview/'),
+  getSubjects: () => api.get('/analytics/subjects/'),
+  getStudents: (subjectId: number) => api.get(`/analytics/students/?subject_id=${subjectId}`),
+  getLowAttendance: () => api.get('/analytics/low-attendance/'),
+  getTrend: (subjectId?: number) => api.get(`/analytics/trend/${subjectId ? `?subject_id=${subjectId}` : ''}`),
+  getClassAnalytics: (subjectId: number) => api.get(`/analytics/class_analytics/?subject_id=${subjectId}`),
 };
 
 export const notificationService = {
@@ -160,12 +193,6 @@ export const resourceService = {
     headers: { 'Content-Type': 'multipart/form-data' }
   }),
   delete: (id: number) => api.delete(`/files/${id}/`),
-};
-
-// Aliases used by Marks.tsx and Resources.tsx
-export const markTypeService = {
-  getAll: (subjectId?: number) => api.get<any[]>(`/mark-types/${subjectId ? `?subject=${subjectId}` : ''}`),
-  create: (data: any) => api.post('/mark-types/', data),
 };
 
 export const resourceFileService = resourceService;

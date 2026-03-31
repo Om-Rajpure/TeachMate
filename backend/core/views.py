@@ -5,17 +5,16 @@ from django.utils import timezone
 from django.shortcuts import get_object_or_404
 from .models import (
     Subject, Teacher, Division, Batch, Timetable, Lecture, Student, StudentSubject,
-    Attendance, Chapter, LecturePlan, MarkType, Mark,
-    Notification, ResourceFile, Experiment
+    Attendance, Chapter, LecturePlan,
+    Notification, ResourceFile, Experiment, TheoryMark, PracticalMark
 )
 from .serializers import (
     SubjectSerializer, TeacherSerializer, DivisionSerializer, 
     BatchSerializer, TimetableSerializer, LectureSerializer,
     StudentSerializer, AttendanceSerializer, 
     ChapterSerializer, LecturePlanSerializer,
-    MarkTypeSerializer, MarkSerializer,
     NotificationSerializer, ResourceFileSerializer,
-    ExperimentSerializer
+    ExperimentSerializer, TheoryMarkSerializer, PracticalMarkSerializer
 )
 from .utils import TimetableParser
 import os
@@ -679,16 +678,23 @@ class AttendanceViewSet(viewsets.ModelViewSet):
         if not subject_id:
             return Response({'error': 'subject_id is required'}, status=status.HTTP_400_BAD_REQUEST)
 
-        students = Student.objects.filter(subject_links__subject_id=subject_id).order_by('name')
+        # Get all students for this subject
+        students = Student.objects.filter(subject_links__subject_id=subject_id).distinct()
+        
         summary_data = []
         for student in students:
+            # Get the link for this specific subject to get the roll number
+            link = student.subject_links.filter(subject_id=subject_id).first()
+            
             present_count = Attendance.objects.filter(student=student, subject_id=subject_id, status='P').count()
             total_student_sessions = Attendance.objects.filter(student=student, subject_id=subject_id).count()
             
-            percentage = round((present_count / total_student_sessions * 100), 2) if total_student_sessions > 0 else 0
+            percentage = round((present_count / total_student_sessions * 100), 1) if total_student_sessions > 0 else 0
             
             summary_data.append({
+                'student_id': student.id,
                 'name': student.name,
+                'roll_number': link.roll_number if link else None,
                 'total_classes': total_student_sessions,
                 'present': present_count,
                 'percentage': percentage
@@ -843,102 +849,373 @@ class LecturePlanViewSet(viewsets.ModelViewSet):
         LecturePlan.objects.filter(subject_id=subject_id).delete()
         return Response({'status': 'success', 'message': 'Syllabus reset successfully'})
 
-class MarkTypeViewSet(viewsets.ModelViewSet):
-    queryset = MarkType.objects.all()
-    serializer_class = MarkTypeSerializer
+class TheoryMarkViewSet(viewsets.ModelViewSet):
+    queryset = TheoryMark.objects.all()
+    serializer_class = TheoryMarkSerializer
 
     def get_queryset(self):
-        queryset = MarkType.objects.all()
-        subject = self.request.query_params.get('subject', None)
-        if subject:
-            queryset = queryset.filter(subject_id=subject)
-        return queryset
-
-class MarkViewSet(viewsets.ModelViewSet):
-    queryset = Mark.objects.all()
-    serializer_class = MarkSerializer
-
-    def get_queryset(self):
-        queryset = Mark.objects.all()
-        student = self.request.query_params.get('student', None)
-        subject = self.request.query_params.get('subject', None)
-        mark_type = self.request.query_params.get('mark_type', None)
+        queryset = TheoryMark.objects.all()
+        student = self.request.query_params.get('student')
+        subject = self.request.query_params.get('subject')
+        exam_type = self.request.query_params.get('exam_type')
         if student:
             queryset = queryset.filter(student_id=student)
         if subject:
             queryset = queryset.filter(subject_id=subject)
-        if mark_type:
-            queryset = queryset.filter(mark_type_id=mark_type)
+        if exam_type:
+            queryset = queryset.filter(exam_type=exam_type)
         return queryset
 
-    @action(detail=False, methods=['post'], url_path='bulk')
-    def bulk_update(self, request):
+    @action(detail=False, methods=['post'], url_path='save')
+    def save_theory_marks(self, request):
         subject_id = request.data.get('subject_id')
-        mark_type_id = request.data.get('mark_type_id')
+        exam_type = request.data.get('exam_type')
+        max_marks = float(request.data.get('max_marks', 0))
+        pass_marks = float(request.data.get('pass_marks', 0))
+        date = request.data.get('date', timezone.now().date())
         marks_data = request.data.get('marks', [])
-        if not subject_id or not mark_type_id:
-            return Response({'error': 'subject_id and mark_type_id are required'}, status=status.HTTP_400_BAD_REQUEST)
+
+        if not subject_id or not exam_type:
+            return Response({'error': 'subject_id and exam_type are required'}, status=status.HTTP_400_BAD_REQUEST)
+        
         results = []
         for entry in marks_data:
-            obj, created = Mark.objects.update_or_create(
+            obj, created = TheoryMark.objects.update_or_create(
                 student_id=entry['student_id'],
                 subject_id=subject_id,
-                mark_type_id=mark_type_id,
-                defaults={'marks_obtained': entry['marks_obtained']}
+                exam_type=exam_type,
+                defaults={
+                    'marks_obtained': entry['marks_obtained'],
+                    'max_marks': max_marks,
+                    'pass_marks': pass_marks,
+                    'date': date,
+                    'year': request.data.get('year', ''),
+                    'branch': request.data.get('branch', ''),
+                    'division_id': request.data.get('division_id')
+                }
             )
-            results.append(MarkSerializer(obj).data)
+            results.append(TheoryMarkSerializer(obj).data)
         return Response(results, status=status.HTTP_201_CREATED)
 
+class PracticalMarkViewSet(viewsets.ModelViewSet):
+    queryset = PracticalMark.objects.all()
+    serializer_class = PracticalMarkSerializer
+
+    def get_queryset(self):
+        queryset = PracticalMark.objects.all()
+        subject = self.request.query_params.get('subject')
+        division = self.request.query_params.get('division')
+        batch = self.request.query_params.get('batch')
+        if subject:
+            queryset = queryset.filter(subject_id=subject)
+        if division:
+            queryset = queryset.filter(division_id=division)
+        if batch:
+            queryset = queryset.filter(batch_id=batch)
+        return queryset
+
+    @action(detail=False, methods=['post'], url_path='save')
+    def save_practical_marks(self, request):
+        subject_id = request.data.get('subject_id')
+        marks_data = request.data.get('marks', [])
+
+        if not subject_id:
+            return Response({'error': 'subject_id is required'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        results = []
+        for entry in marks_data:
+            # Flatten assignments if needed or use individual parts
+            obj, created = PracticalMark.objects.update_or_create(
+                student_id=entry['student_id'],
+                subject_id=subject_id,
+                defaults={
+                    'division_id': request.data.get('division_id'),
+                    'batch_id': request.data.get('batch_id'),
+                    'part_a': entry.get('part_a', 0),
+                    'part_b': entry.get('part_b', 0),
+                    'part_c': entry.get('part_c', 0),
+                    'part_d': entry.get('part_d', 0),
+                    'assign1_p1': entry.get('assign1_p1', 0),
+                    'assign1_p2': entry.get('assign1_p2', 0),
+                    'assign1_p3': entry.get('assign1_p3', 0),
+                    'assign2_p1': entry.get('assign2_p1', 0),
+                    'assign2_p2': entry.get('assign2_p2', 0),
+                    'assign2_p3': entry.get('assign2_p3', 0)
+                }
+            )
+            results.append(PracticalMarkSerializer(obj).data)
+        return Response(results, status=status.HTTP_201_CREATED)
+
+from rest_framework.views import APIView
+import pandas as pd
+
+class MarkUploadView(APIView):
+    def post(self, request):
+        file_obj = request.FILES.get('file')
+        subject_id = request.data.get('subject_id')
+        division_id = request.data.get('division_id')
+        exam_type = request.data.get('exam_type') # For theory
+        mark_type = request.data.get('mark_type', 'theory') # theory or practical
+
+        if not file_obj or not subject_id or not division_id:
+            return Response({'error': 'File, subject, and division are required'}, status=400)
+
+        # Save temporarily
+        path = default_storage.save('tmp/' + file_obj.name, ContentFile(file_obj.read()))
+        full_path = os.path.join(settings.MEDIA_ROOT, path)
+
+        try:
+            df = pd.read_excel(full_path, engine='openpyxl')
+            
+            # Identify Roll Number and Marks columns
+            roll_col = next((c for c in df.columns if 'roll' in str(c).lower()), None)
+            
+            if not roll_col:
+                return Response({'error': 'Roll Number column not found'}, status=400)
+
+            results = []
+            if mark_type == 'theory':
+                marks_col = next((c for c in df.columns if 'marks' in str(c).lower() or 'score' in str(c).lower()), None)
+                if not marks_col:
+                     return Response({'error': 'Marks column not found'}, status=400)
+                
+                for _, row in df.iterrows():
+                    roll_val = str(row[roll_col]).strip()
+                    marks_val = row[marks_col]
+                    
+                    # Find student by roll number in this subject/division
+                    link = StudentSubject.objects.filter(
+                        subject_id=subject_id, 
+                        division_id=division_id, 
+                        roll_number=roll_val
+                    ).first()
+                    
+                    if link:
+                        obj, _ = TheoryMark.objects.update_or_create(
+                            student=link.student,
+                            subject_id=subject_id,
+                            exam_type=exam_type,
+                            defaults={
+                                'marks_obtained': float(marks_val),
+                                'max_marks': float(request.data.get('max_marks', 100)),
+                                'pass_marks': float(request.data.get('pass_marks', 40)),
+                                'date': timezone.now().date(),
+                                'division_id': division_id,
+                                'year': request.data.get('year', ''),
+                                'branch': request.data.get('branch', '')
+                            }
+                        )
+                        results.append(TheoryMarkSerializer(obj).data)
+            else:
+                # Practical upload (complex)
+                # Map specific columns: Part A, B, C, D, Assign1, Assign2
+                for _, row in df.iterrows():
+                    roll_val = str(row[roll_col]).strip()
+                    link = StudentSubject.objects.filter(
+                        subject_id=subject_id, 
+                        division_id=division_id, 
+                        roll_number=roll_val
+                    ).first()
+                    
+                    if link:
+                        # Extracting columns if they exist
+                        obj, _ = PracticalMark.objects.update_or_create(
+                            student=link.student,
+                            subject_id=subject_id,
+                            defaults={
+                                'division_id': division_id,
+                                'batch_id': link.batch_id,
+                                'part_a': row.get('Part A', 0),
+                                'part_b': row.get('Part B', 0),
+                                'part_c': row.get('Part C', 0),
+                                'part_d': row.get('Part D', 0),
+                            }
+                        )
+                        results.append(PracticalMarkSerializer(obj).data)
+
+            return Response({'status': 'success', 'processed': len(results)})
+        except Exception as e:
+            return Response({'error': str(e)}, status=500)
+        finally:
+            if os.path.exists(full_path):
+                os.remove(full_path)
+
 class AnalyticsViewSet(viewsets.ViewSet):
+    @action(detail=False, methods=['get'])
+    def overview(self, request):
+        total_records = Attendance.objects.count()
+        present_records = Attendance.objects.filter(status='P').count()
+        avg_attendance = round((present_records / total_records) * 100, 1) if total_records > 0 else 0
+        
+        # Calculate unique sessions
+        total_classes = Attendance.objects.values('subject_id', 'date', 'lecture_plan_id', 'experiment_id').distinct().count()
+        
+        # Identify students with < 75% attendance overall
+        low_att_count = 0
+        all_students = Student.objects.all()
+        for student in all_students:
+            s_total = Attendance.objects.filter(student=student).count()
+            if s_total > 0:
+                s_present = Attendance.objects.filter(student=student, status='P').count()
+                if (s_present / s_total) < 0.75:
+                    low_att_count += 1
+                    
+        return Response({
+            'total_classes': total_classes,
+            'total_students': all_students.count(),
+            'avg_attendance': avg_attendance,
+            'low_attendance_count': low_att_count
+        })
+
+    @action(detail=False, methods=['get'])
+    def subjects(self, request):
+        subjects = Subject.objects.all()
+        result = []
+        for sub in subjects:
+            total = Attendance.objects.filter(subject=sub).count()
+            if total > 0:
+                present = Attendance.objects.filter(subject=sub, status='P').count()
+                percentage = round((present / total) * 100, 1)
+                result.append({
+                    'subject_name': sub.name,
+                    'percentage': percentage
+                })
+            else:
+                result.append({
+                    'subject_name': sub.name,
+                    'percentage': 0
+                })
+        return Response(result)
+
+    @action(detail=False, methods=['get'])
+    def students(self, request):
+        subject_id = request.query_params.get('subject_id')
+        if not subject_id:
+            return Response({'error': 'subject_id required'}, status=400)
+            
+        # Use StudentSubject to get roll numbers for the specific subject
+        links = StudentSubject.objects.filter(subject_id=subject_id).select_related('student')
+        result = []
+        for link in links:
+            s = link.student
+            total = Attendance.objects.filter(student=s, subject_id=subject_id).count()
+            if total > 0:
+                present = Attendance.objects.filter(student=s, subject_id=subject_id, status='P').count()
+                percentage = round((present / total) * 100, 1)
+                result.append({
+                    'name': s.name,
+                    'roll_number': link.roll_number,
+                    'percentage': percentage
+                })
+            else:
+                result.append({
+                    'name': s.name,
+                    'roll_number': link.roll_number,
+                    'percentage': 0
+                })
+        
+        result.sort(key=lambda x: x['percentage'], reverse=True)
+        return Response(result)
+
+    @action(detail=False, methods=['get'], url_path='low-attendance')
+    def low_attendance(self, request):
+        # Overall attendance < 75%
+        all_students = Student.objects.all()
+        result = []
+        for s in all_students:
+            total = Attendance.objects.filter(student=s).count()
+            if total > 0:
+                present = Attendance.objects.filter(student=s, status='P').count()
+                percentage = round((present / total) * 100, 1)
+                if percentage < 75:
+                    # Get any roll number (usually consistent)
+                    link = s.subject_links.first()
+                    result.append({
+                        'name': s.name,
+                        'roll_number': link.roll_number if link else 'N/A',
+                        'percentage': percentage
+                    })
+        return Response(result)
+
+    @action(detail=False, methods=['get'])
+    def trend(self, request):
+        subject_id = request.query_params.get('subject_id')
+        query = Attendance.objects.all()
+        if subject_id:
+            query = query.filter(subject_id=subject_id)
+            
+        dates = query.values('date').distinct().order_by('date')
+        result = []
+        for d in dates:
+            day_total = query.filter(date=d['date']).count()
+            day_present = query.filter(date=d['date'], status='P').count()
+            percentage = round((day_present / day_total) * 100, 1) if day_total > 0 else 0
+            result.append({
+                'date': d['date'].isoformat(),
+                'percentage': percentage
+            })
+        return Response(result)
+
     @action(detail=False, methods=['get'], url_path='class_analytics')
     def class_analytics(self, request):
-        students = Student.objects.all()
-        subjects = Subject.objects.all()
-        if not students.exists():
-            return Response({'error': 'No students found'}, status=404)
+        subject_id = request.query_params.get('subject_id')
+        if not subject_id:
+            return Response({'error': 'subject_id required'}, status=400)
+            
+        students = Student.objects.filter(subject_links__subject_id=subject_id).distinct()
+        
         student_performances = []
+        subject_sum_marks = 0
+        subject_count = 0
+        
         for student in students:
-            total_obtained = 0
-            total_max = 0
-            for subject in subjects:
-                sub_obtained = 0
-                sub_max = 0
-                marks = Mark.objects.filter(student=student, subject=subject)
-                for m in marks:
-                    sub_obtained += m.marks_obtained
-                    sub_max += m.mark_type.max_marks
-                total_obtained += sub_obtained
-                total_max += sub_max
+            # For theory - use current exam type or aggregate? 
+            # Let's aggregate theory marks for this subject
+            theory_marks = TheoryMark.objects.filter(student=student, subject_id=subject_id)
+            prac_mark = PracticalMark.objects.filter(student=student, subject_id=subject_id).first()
+            
+            total_obtained = sum(m.marks_obtained for m in theory_marks)
+            total_max = sum(m.max_marks for m in theory_marks)
+            
+            if prac_mark:
+                total_obtained += prac_mark.total_marks
+                total_max += 25 # Assuming practical is out of 25 (Part A+B+C+D + Assignments)
+                # Actually let's sum the parts
+                # total_max += 15 (Exp) + 10 (Assign) = 25
+            
             percentage = round((total_obtained / total_max * 100), 2) if total_max > 0 else 0
+            
+            link = student.subject_links.filter(subject_id=subject_id).first()
+            roll_number = link.roll_number if link else 'N/A'
+
             student_performances.append({
                 'id': student.id,
                 'name': student.name,
-                'roll_number': student.roll_number,
+                'roll_number': roll_number,
                 'total_marks': total_obtained,
                 'max_possible': total_max,
                 'percentage': percentage,
-                'grade': self._get_grade(percentage)
+                'grade': self._get_grade(percentage),
+                'passed': all(m.marks_obtained >= m.pass_marks for m in theory_marks)
             })
+            
+            if total_max > 0:
+                subject_sum_marks += percentage
+                subject_count += 1
+
         student_performances.sort(key=lambda x: x['percentage'], reverse=True)
         for i, p in enumerate(student_performances):
             p['rank'] = i + 1
-        class_avg = sum(p['percentage'] for p in student_performances) / len(student_performances) if student_performances else 0
-        subject_avgs = []
-        for subject in subjects:
-            sub_marks = Mark.objects.filter(subject=subject)
-            sub_total = sum(m.marks_obtained for m in sub_marks)
-            sub_max_total = sum(m.mark_type.max_marks for m in sub_marks)
-            if sub_max_total > 0:
-                subject_avgs.append({
-                    'subject': subject.name,
-                    'avg_percentage': round((sub_total / sub_max_total) * 100, 2)
-                })
+            
+        class_avg = subject_sum_marks / subject_count if subject_count > 0 else 0
+        
         return Response({
             'class_average': round(class_avg, 2),
             'total_students': len(student_performances),
             'toppers': student_performances[:3],
             'weak_students': [p for p in student_performances if p['percentage'] < 60],
-            'subject_performance': subject_avgs,
+            'passed_count': len([p for p in student_performances if p.get('passed', True)]),
+            'failed_count': len([p for p in student_performances if not p.get('passed', True)]),
             'student_performances': student_performances
         })
 

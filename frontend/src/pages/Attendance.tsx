@@ -20,8 +20,10 @@ type ViewSubTab = 'records' | 'summary';
 const Attendance = () => {
   const [mode, setMode] = useState<AttendanceMode>('take');
   const [inputMode, setInputMode] = useState<InputMode>('auto');
-  const [subTab, setSubTab] = useState<ViewSubTab>('records');
+  const [subTab, setSubTab] = useState<ViewSubTab>(window.innerWidth < 640 ? 'summary' : 'records');
   const [loading, setLoading] = useState(true);
+  const [analyticsFilter, setAnalyticsFilter] = useState<'all' | 'risk' | 'average' | 'good'>('all');
+
 
   // Take Attendance State
   const [currentClass, setCurrentClass] = useState<any>(null);
@@ -768,55 +770,154 @@ const Attendance = () => {
               ))}
             </div>
 
+            {/* Analytics Filter Bar (Only shown in summary tab) */}
+            {subTab === 'summary' && filters.subject_id && (
+              <motion.div 
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="flex flex-wrap items-center gap-3 px-4"
+              >
+                {[
+                  { id: 'all', label: 'All Students', icon: Filter },
+                  { id: 'risk', label: 'At Risk (<75%)', color: 'rose' },
+                  { id: 'average', label: 'Average (75-85%)', color: 'amber' },
+                  { id: 'good', label: 'Good (>85%)', color: 'emerald' }
+                ].map((f) => (
+                  <button
+                    key={f.id}
+                    onClick={() => setAnalyticsFilter(f.id as any)}
+                    className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border-2 ${
+                      analyticsFilter === f.id 
+                        ? f.id === 'all' ? 'bg-primary border-primary text-white shadow-lg shadow-primary/20' 
+                          : f.id === 'risk' ? 'bg-rose-500 border-rose-500 text-white shadow-lg shadow-rose-500/20'
+                          : f.id === 'average' ? 'bg-amber-500 border-amber-500 text-white shadow-lg shadow-amber-500/20'
+                          : 'bg-emerald-500 border-emerald-500 text-white shadow-lg shadow-emerald-500/20'
+                        : 'bg-white border-gray-100 text-text-muted hover:border-gray-200'
+                    }`}
+                  >
+                    {f.id === 'all' && <Filter size={14} />}
+                    {f.id !== 'all' && <div className={`w-2 h-2 rounded-full ${
+                      f.id === 'risk' ? 'bg-rose-500' : f.id === 'average' ? 'bg-amber-500' : 'bg-emerald-500'
+                    } ${analyticsFilter === f.id ? 'bg-white' : ''}`} />}
+                    {f.label}
+                  </button>
+                ))}
+              </motion.div>
+            )}
+
             {/* Results Content */}
             {filters.subject_id ? (
               subTab === 'records' ? (
                 <AttendanceRecords records={records} loading={loading} />
               ) : (
                 /* Summary Grid UI (Existing Analytics) */
-                <div className="grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
-                  {summary.map((s: any, i: number) => (
-                    <motion.div 
-                      key={s.name}
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: i * 0.02 }}
-                      className="bg-white p-8 rounded-[3rem] border border-gray-100 shadow-xl shadow-primary/5 group hover:-translate-y-2 transition-all"
-                    >
-                      <div className="flex items-start justify-between mb-8">
-                        <div className="w-16 h-16 rounded-[1.5rem] bg-gray-50 flex items-center justify-center font-black text-2xl text-text-muted shadow-inner group-hover:bg-primary group-hover:text-white transition-all">
-                          {s.name.slice(0, 1).toUpperCase()}
-                        </div>
-                        <div className="text-right">
-                          <p className={`text-4xl font-black italic tracking-tighter ${
-                            s.percentage < 75 ? 'text-rose-500' : 'text-emerald-500'
-                          }`}>{s.percentage}%</p>
-                          <p className="text-[10px] font-black text-text-muted uppercase tracking-[0.2em] opacity-40">Attendance</p>
-                        </div>
+                /* Summary Grid UI (Actionable Analytics) */
+                (() => {
+                  // Sorting: Lowest attendance first
+                  const sorted = [...summary].sort((a, b) => a.percentage - b.percentage);
+                  
+                  // Filtering
+                  const filtered = sorted.filter(s => {
+                    if (analyticsFilter === 'all') return true;
+                    if (analyticsFilter === 'risk') return s.percentage < 75;
+                    if (analyticsFilter === 'average') return s.percentage >= 75 && s.percentage <= 85;
+                    if (analyticsFilter === 'good') return s.percentage > 85;
+                    return true;
+                  });
+
+                  if (filtered.length === 0) {
+                    return (
+                      <div className="py-20 text-center bg-gray-50/50 rounded-[3rem] border border-gray-100 border-dashed">
+                        <p className="text-text-muted font-black text-[10px] uppercase tracking-[0.3em]">No students matching this filter</p>
                       </div>
-                      <div className="space-y-4">
-                        <div className="p-4 bg-gray-50/50 rounded-2xl space-y-3 border border-gray-100/50">
-                           <div className="flex justify-between text-[10px] font-black uppercase tracking-widest">
-                              <span className="text-text-muted italic opacity-60">{s.present} / {s.total_classes} Ses</span>
-                              <span className={s.percentage < 75 ? 'text-rose-500' : 'text-emerald-500'}>
-                                {s.percentage < 75 ? 'At Risk' : 'Healthy'}
-                              </span>
-                           </div>
-                           <div className="h-2.5 bg-gray-100 rounded-full overflow-hidden shadow-inner p-0.5">
-                              <motion.div 
-                                initial={{ width: 0 }}
-                                animate={{ width: `${s.percentage}%` }}
-                                transition={{ duration: 1.5, ease: "easeOut" }}
-                                className={`h-full rounded-full shadow-sm ${
-                                  s.percentage < 75 ? 'bg-gradient-to-r from-rose-500 to-rose-400' : 'bg-gradient-to-r from-emerald-500 to-emerald-400'
-                                }`}
-                              />
-                           </div>
-                        </div>
-                      </div>
-                    </motion.div>
-                  ))}
-                </div>
+                    );
+                  }
+
+                  return (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+                      {filtered.map((s: any, i: number) => {
+                        const isRisk = s.percentage < 75;
+                        const isAvg = s.percentage >= 75 && s.percentage <= 85;
+                        const isGood = s.percentage > 85;
+                        
+                        let colorClass = 'primary';
+                        let label = 'Healthy';
+                        let icon = '🟢';
+
+                        if (isRisk) {
+                          colorClass = 'rose';
+                          label = 'At Risk';
+                          icon = '🔴';
+                        } else if (isAvg) {
+                          colorClass = 'amber';
+                          label = 'Average';
+                          icon = '🟡';
+                        } else if (isGood) {
+                          colorClass = 'emerald';
+                          label = 'Good';
+                          icon = '🟢';
+                        }
+
+                        return (
+                          <motion.div 
+                            key={s.student_id || s.name}
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: i * 0.02 }}
+                            className="bg-white p-8 rounded-[3rem] border border-gray-100 shadow-xl shadow-primary/5 group hover:-translate-y-2 transition-all relative overflow-hidden"
+                          >
+                            {/* Decorative background circle */}
+                            <div className={`absolute top-0 right-0 w-24 h-24 bg-${colorClass}-500/5 rounded-full -mr-12 -mt-12 transition-all group-hover:scale-150`} />
+                            
+                            <div className="relative space-y-6">
+                              {/* Header: Roll + Name */}
+                              <div className="flex items-center gap-4">
+                                <div className={`w-12 h-12 rounded-2xl bg-${colorClass}-50 flex items-center justify-center font-black text-lg text-${colorClass}-500 shadow-inner group-hover:bg-${colorClass}-500 group-hover:text-white transition-all`}>
+                                  {s.roll_number || s.name.slice(0, 1).toUpperCase()}
+                                </div>
+                                <div className="min-w-0">
+                                  <h4 className="font-black text-text tracking-tight truncate group-hover:text-primary transition-colors">{s.name}</h4>
+                                  <p className="text-[10px] font-black text-text-muted uppercase tracking-widest opacity-60">Roll #{s.roll_number || 'N/A'}</p>
+                                </div>
+                              </div>
+
+                              {/* Main Display: Big Percentage */}
+                              <div className="flex items-baseline justify-between">
+                                <span className={`text-5xl font-black italic tracking-tighter text-${colorClass}-500`}>
+                                  {s.percentage}
+                                  <span className="text-xl not-italic ml-1 opacity-40">%</span>
+                                </span>
+                                <div className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest bg-${colorClass}-50 text-${colorClass}-600 border border-${colorClass}-100 flex items-center gap-1.5 shadow-sm`}>
+                                  {icon} {label}
+                                </div>
+                              </div>
+
+                              {/* Progress & Stats */}
+                              <div className="space-y-3">
+                                 <div className="h-3 bg-gray-50 rounded-full overflow-hidden shadow-inner p-0.5 border border-gray-100">
+                                    <motion.div 
+                                      initial={{ width: 0 }}
+                                      animate={{ width: `${s.percentage}%` }}
+                                      transition={{ duration: 1.5, ease: "easeOut" }}
+                                      className={`h-full rounded-full shadow-sm bg-gradient-to-r ${
+                                        isRisk ? 'from-rose-600 to-rose-400' 
+                                          : isAvg ? 'from-amber-500 to-amber-300'
+                                          : 'from-emerald-500 to-emerald-400'
+                                      }`}
+                                    />
+                                 </div>
+                                 <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-widest text-text-muted italic opacity-60">
+                                    <span>Attended Sessions</span>
+                                    <span className="text-text font-bold opacity-100">{s.present} / {s.total_classes}</span>
+                                 </div>
+                              </div>
+                            </div>
+                          </motion.div>
+                        );
+                      })}
+                    </div>
+                  );
+                })()
               )
             ) : (
               /* Empty Filter State */

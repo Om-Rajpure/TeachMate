@@ -169,25 +169,59 @@ class Attendance(models.Model):
     def __str__(self):
         return f"{self.student.name} - {self.subject.name} - {self.date}"
 
-class MarkType(models.Model):
-    name = models.CharField(max_length=50) # IA1, IA2, Viva, Assignment, EndSem
-    max_marks = models.PositiveIntegerField()
-    subject = models.ForeignKey(Subject, on_delete=models.CASCADE, related_name='mark_types')
-
-    def __str__(self):
-        return f"{self.subject.name} - {self.name} ({self.max_marks})"
-
-class Mark(models.Model):
-    student = models.ForeignKey(Student, on_delete=models.CASCADE, related_name='marks')
-    subject = models.ForeignKey(Subject, on_delete=models.CASCADE, related_name='marks')
-    mark_type = models.ForeignKey(MarkType, on_delete=models.CASCADE, related_name='marks')
+class TheoryMark(models.Model):
+    student = models.ForeignKey(Student, on_delete=models.CASCADE, related_name='theory_marks')
+    subject = models.ForeignKey(Subject, on_delete=models.CASCADE, related_name='theory_marks')
+    year = models.CharField(max_length=20)
+    branch = models.CharField(max_length=100)
+    division = models.ForeignKey(Division, on_delete=models.CASCADE)
+    exam_type = models.CharField(max_length=50) # IA1, IA2, EndSem
     marks_obtained = models.FloatField()
+    max_marks = models.FloatField()
+    pass_marks = models.FloatField()
+    date = models.DateField()
+    created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        unique_together = ('student', 'subject', 'mark_type')
+        unique_together = ('student', 'subject', 'exam_type')
 
     def __str__(self):
-        return f"{self.student.name} - {self.mark_type.name}: {self.marks_obtained}"
+        return f"{self.student.name} - {self.exam_type}: {self.marks_obtained}/{self.max_marks}"
+
+class PracticalMark(models.Model):
+    student = models.ForeignKey(Student, on_delete=models.CASCADE, related_name='practical_marks')
+    subject = models.ForeignKey(Subject, on_delete=models.CASCADE, related_name='practical_marks')
+    division = models.ForeignKey(Division, on_delete=models.CASCADE)
+    batch = models.ForeignKey(Batch, on_delete=models.CASCADE)
+    
+    # Practical Exam (15 marks)
+    part_a = models.FloatField(default=0)
+    part_b = models.FloatField(default=0)
+    part_c = models.FloatField(default=0)
+    part_d = models.FloatField(default=0)
+    
+    # Assignments
+    assign1_p1 = models.FloatField(default=0)
+    assign1_p2 = models.FloatField(default=0)
+    assign1_p3 = models.FloatField(default=0)
+    assign2_p1 = models.FloatField(default=0)
+    assign2_p2 = models.FloatField(default=0)
+    assign2_p3 = models.FloatField(default=0)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ('student', 'subject')
+
+    @property
+    def total_marks(self):
+        return (self.part_a + self.part_b + self.part_c + self.part_d + 
+                self.assign1_p1 + self.assign1_p2 + self.assign1_p3 + 
+                self.assign2_p1 + self.assign2_p2 + self.assign2_p3)
+
+    def __str__(self):
+        return f"{self.student.name} - {self.subject.name} Practical"
 
 class Notification(models.Model):
     NOTIFICATION_TYPES = [

@@ -20,11 +20,12 @@
   }
   
   body {
-    @apply bg-background text-text antialiased selection:bg-primary selection:text-white;
+    @apply bg-background text-text antialiased selection:bg-primary selection:text-white overflow-x-hidden;
   }
 
   /* Smooth scrolling */
   html {
+    @apply overflow-x-hidden;
     scroll-behavior: smooth;
   }
 }
