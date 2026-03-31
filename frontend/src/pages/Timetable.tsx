@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Calendar, ArrowLeft, Upload, Grid3X3, Table as TableIcon } from 'lucide-react';
 import { timetableService } from '../services/api';
-import { toast } from 'react-toastify';
+import { toast } from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import TimetableGrid from '../components/TimetableGrid';

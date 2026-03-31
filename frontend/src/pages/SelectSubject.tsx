@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import { BookOpen, GraduationCap, ChevronRight, Search } from 'lucide-react';
 import { subjectService } from '../services/api';
 import type { Subject } from '../types';
-import { toast } from 'react-toastify';
+import { toast } from 'react-hot-toast';
 
 const SelectSubject = () => {
   const navigate = useNavigate();

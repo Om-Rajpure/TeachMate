@@ -67,12 +67,11 @@ export interface Lecture {
 export interface Student {
   id: number;
   name: string;
-  roll_number: string;
-  division: number;
-  batch?: number;
+  roll_number: number | null;
   division_name: string;
   batch_name?: string;
   attendance_percentage: number;
+  created_at?: string;
 }
 
 export interface Chapter {

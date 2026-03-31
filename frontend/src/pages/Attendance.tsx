@@ -8,7 +8,7 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import { attendanceService, subjectService, studentService, divisionService, batchService, syllabusService } from '../services/api';
 import type { Student, Subject, Division, Batch } from '../types';
-import { toast } from 'react-toastify';
+import { toast } from 'react-hot-toast';
 
 const formatDate = (date: Date) => date.toISOString().split('T')[0];
 
@@ -91,7 +91,14 @@ const Attendance = () => {
   const fetchStudentsForClass = async (subjectId: number) => {
     try {
       const res = await studentService.getAll(subjectId);
-      setStudents(res.data);
+      const sorted = [...res.data].sort((a, b) => {
+        // Null roll_numbers go to the end
+        if (a.roll_number == null && b.roll_number == null) return 0;
+        if (a.roll_number == null) return 1;
+        if (b.roll_number == null) return -1;
+        return a.roll_number - b.roll_number;
+      });
+      setStudents(sorted);
       // Default to all present unless overridden by checkExistingAttendance
       const initialMap: Record<number, 'P' | 'A'> = {};
       res.data.forEach(s => initialMap[s.id] = 'P');
@@ -116,7 +123,7 @@ const Attendance = () => {
           existingMap[rec.student] = rec.status;
         });
         setAttendanceMap(prev => ({ ...prev, ...existingMap }));
-        toast.info('Attendance already exists. Switch to Edit Mode.');
+        toast('Attendance already exists. Switch to Edit Mode.');
       } else {
         setIsEditMode(false);
       }
@@ -583,10 +590,10 @@ const Attendance = () => {
                       </div>
                       <div className="relative flex flex-col gap-6">
                         <div className="flex items-center gap-4">
-                           <div className={`w-14 h-14 rounded-2xl flex items-center justify-center text-xl font-black shadow-lg transition-transform group-active:scale-95 ${
+                           <div className={`w-14 h-14 rounded-full flex items-center justify-center text-lg font-black shadow-lg transition-transform group-active:scale-95 ${
                              attendanceMap[student.id] === 'P' ? 'bg-emerald-500 text-white' : 'bg-rose-500 text-white'
                            }`}>
-                             {student.name.slice(0, 1).toUpperCase()}
+                             {student.roll_number != null ? student.roll_number : student.name.slice(0, 1).toUpperCase()}
                            </div>
                            <div className="space-y-0.5">
                              <h4 className="font-black text-text tracking-tight group-hover:text-primary transition-colors">{student.name}</h4>

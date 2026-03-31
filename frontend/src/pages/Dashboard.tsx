@@ -10,7 +10,7 @@ import { useDashboardLogic } from '../hooks/useDashboardLogic';
 import UploadPreview from '../components/UploadPreview';
 import TimetableCard from '../components/TimetableCard';
 import type { Timetable, DashboardStats, LecturePlan, Notification, Subject, Experiment } from '../types';
-import { toast } from 'react-toastify';
+import { toast } from 'react-hot-toast';
 
 
 const Dashboard = () => {

@@ -20,7 +20,7 @@ import {
 import { AnimatePresence } from 'framer-motion';
 import { syllabusService, subjectService } from '../services/api';
 import type { Subject, Chapter, LecturePlan, Experiment } from '../types';
-import { toast } from 'react-toastify';
+import { toast } from 'react-hot-toast';
 
 
 const Syllabus = () => {

@@ -1,6 +1,5 @@
 import { useEffect, useCallback } from 'react';
-import { toast } from 'react-toastify';
-import type { ToastOptions } from 'react-toastify';
+import { toast } from 'react-hot-toast';
 
 interface WebSocketMessage {
   title: string;
@@ -13,24 +12,15 @@ export const useWebSockets = (onNotificationReceived?: () => void) => {
     const socket = new WebSocket('ws://localhost:8001/ws/notifications/');
 
     socket.onmessage = (event) => {
-      const data: WebSocketMessage = JSON.parse(event.data);
-      
       // Trigger Toast
-      const toastOptions: ToastOptions = {
-        position: "top-right",
-        autoClose: 5000,
-        hideProgressBar: false,
-        closeOnClick: true,
-        pauseOnHover: true,
-        draggable: true,
-      };
+      const data: WebSocketMessage = JSON.parse(event.data);
 
       if (data.type === 'Warning') {
-        toast.error(`${data.title}: ${data.message}`, toastOptions);
+        toast.error(`${data.title}: ${data.message}`);
       } else if (data.type === 'Reminder') {
-        toast.info(`${data.title}: ${data.message}`, toastOptions);
+        toast(`${data.title}: ${data.message}`);
       } else {
-        toast.success(`${data.title}: ${data.message}`, toastOptions);
+        toast.success(`${data.title}: ${data.message}`);
       }
 
       if (onNotificationReceived) {

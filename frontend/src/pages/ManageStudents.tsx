@@ -8,7 +8,7 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import { studentService, subjectService, divisionService } from '../services/api';
 import type { Student, Subject, Division } from '../types';
-import { toast } from 'react-toastify';
+import { toast } from 'react-hot-toast';
 
 const ManageStudents = () => {
   const [searchParams] = useSearchParams();
@@ -28,16 +28,20 @@ const ManageStudents = () => {
   const [editingStudent, setEditingStudent] = useState<Student | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Form States
   const [formData, setFormData] = useState({
     name: '',
-    division: '',
-    batch: ''
+    roll_number: '',
+    division_id: '',
+    batch_id: ''
   });
 
   // Upload States
   const [uploadFile, setUploadFile] = useState<File | null>(null);
-  const [uploadMode, setUploadMode] = useState<'append' | 'replace'>('append');
+  const [uploadConfig, setUploadConfig] = useState({
+    starting_roll: '1',
+    division_id: '',
+    mode: 'append' as 'append' | 'replace'
+  });
 
   const fetchData = async () => {
     try {
@@ -68,8 +72,8 @@ const ManageStudents = () => {
 
   const handleAddEdit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.name || !formData.division) {
-      toast.error('Name and Division are required');
+    if (!formData.name || !formData.division_id || !formData.roll_number) {
+      toast.error('Name, Division and Roll Number are required');
       return;
     }
 
@@ -78,14 +82,18 @@ const ManageStudents = () => {
       if (editingStudent) {
         await studentService.update(editingStudent.id, {
           name: formData.name,
-          division_id: divisions.find(d => d.name === formData.division)?.id,
-          // batch handled as string in my view logic currently, but models have FK. 
-          // My direct create/update logic expects names for convenience in this prototype.
-        } as any);
+          roll_number: Number(formData.roll_number),
+          division_id: Number(formData.division_id),
+          batch_id: formData.batch_id ? Number(formData.batch_id) : undefined,
+          subject_id: subjectId
+        });
         toast.success('Student updated successfully');
       } else {
         await studentService.create({
-          ...formData,
+          name: formData.name,
+          roll_number: Number(formData.roll_number),
+          division_id: Number(formData.division_id),
+          batch_id: formData.batch_id ? Number(formData.batch_id) : undefined,
           subject_id: subjectId
         });
         toast.success('Student added successfully');
@@ -111,10 +119,19 @@ const ManageStudents = () => {
   };
 
   const handleUpload = async () => {
-    if (!uploadFile) return;
+    if (!uploadFile || !uploadConfig.division_id) {
+      toast.error('Please select a file and division');
+      return;
+    }
     setIsSubmitting(true);
     try {
-      const res = await studentService.upload(uploadFile, subjectId, uploadMode);
+      const res = await studentService.upload(
+        uploadFile, 
+        subjectId, 
+        Number(uploadConfig.division_id), 
+        Number(uploadConfig.starting_roll), 
+        uploadConfig.mode
+      );
       toast.success(res.data.message);
       fetchData();
       setShowUploadModal(false);
@@ -130,7 +147,7 @@ const ManageStudents = () => {
     setShowAddModal(false);
     setShowUploadModal(false);
     setEditingStudent(null);
-    setFormData({ name: '', division: '', batch: '' });
+    setFormData({ name: '', roll_number: '', division_id: '', batch_id: '' });
   };
 
   const filteredStudents = students.filter(s => {
@@ -218,6 +235,7 @@ const ManageStudents = () => {
           <table className="w-full text-left">
             <thead className="bg-gray-50/80 border-b border-gray-100">
               <tr>
+                <th className="px-8 py-5 text-xs font-black text-text-muted uppercase tracking-widest w-24">Roll No</th>
                 <th className="px-8 py-5 text-xs font-black text-text-muted uppercase tracking-widest">Name</th>
                 <th className="px-8 py-5 text-xs font-black text-text-muted uppercase tracking-widest">Division</th>
                 <th className="px-8 py-5 text-xs font-black text-text-muted uppercase tracking-widest">Batch</th>
@@ -229,9 +247,14 @@ const ManageStudents = () => {
                 filteredStudents.map((s) => (
                   <tr key={s.id} className="hover:bg-gray-50/50 transition-colors group">
                     <td className="px-8 py-6">
+                      <span className="font-black text-primary bg-primary/5 px-3 py-1 rounded-lg">
+                        #{s.roll_number || '--'}
+                      </span>
+                    </td>
+                    <td className="px-8 py-6">
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-primary/5 text-primary flex items-center justify-center font-black">
-                          {s.name.slice(0, 1).toUpperCase()}
+                        <div className="w-10 h-10 rounded-xl bg-gray-100 text-text-muted flex items-center justify-center font-black">
+                          {s.roll_number || s.name.slice(0, 1).toUpperCase()}
                         </div>
                         <span className="font-bold text-text">{s.name}</span>
                       </div>
@@ -255,10 +278,12 @@ const ManageStudents = () => {
                         <button 
                           onClick={() => {
                             setEditingStudent(s);
+                            const div = divisions.find(d => d.name === s.division_name);
                             setFormData({
                               name: s.name,
-                              division: s.division_name,
-                              batch: s.batch_name || ''
+                              roll_number: String(s.roll_number || ''),
+                              division_id: String(div?.id || ''),
+                              batch_id: '' // We'd need batch list to map back
                             });
                             setShowAddModal(true);
                           }}
@@ -337,28 +362,29 @@ const ManageStudents = () => {
 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
+                    <label className="text-sm font-bold text-text-muted ml-1 uppercase tracking-wider text-[10px]">Roll Number</label>
+                    <input 
+                      type="number" 
+                      required
+                      value={formData.roll_number}
+                      onChange={(e) => setFormData({...formData, roll_number: e.target.value})}
+                      placeholder="e.g. 1"
+                      className="w-full px-5 py-3.5 rounded-2xl border border-gray-100 bg-gray-50/30 focus:bg-white focus:border-primary outline-none font-black transition-all"
+                    />
+                  </div>
+                  <div className="space-y-2">
                     <label className="text-sm font-bold text-text-muted ml-1 uppercase tracking-wider text-[10px]">Division</label>
                     <select 
                       required
-                      value={formData.division}
-                      onChange={(e) => setFormData({...formData, division: e.target.value})}
+                      value={formData.division_id}
+                      onChange={(e) => setFormData({...formData, division_id: e.target.value})}
                       className="w-full px-5 py-3.5 rounded-2xl border border-gray-100 bg-gray-50/30 focus:bg-white focus:border-primary outline-none font-bold text-sm transition-all"
                     >
                       <option value="">Select</option>
                       {divisions.map(d => (
-                        <option key={d.id} value={d.name}>{d.name}</option>
+                        <option key={d.id} value={d.id}>{d.name}</option>
                       ))}
                     </select>
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-bold text-text-muted ml-1 uppercase tracking-wider text-[10px]">Batch (Optional)</label>
-                    <input 
-                      type="text" 
-                      value={formData.batch}
-                      onChange={(e) => setFormData({...formData, batch: e.target.value})}
-                      placeholder="e.g. B1"
-                      className="w-full px-5 py-3.5 rounded-2xl border border-gray-100 bg-gray-50/30 focus:bg-white focus:border-primary outline-none font-medium transition-all"
-                    />
                   </div>
                 </div>
 
@@ -400,13 +426,38 @@ const ManageStudents = () => {
               <p className="text-text-muted mb-8 italic text-sm">Upload an Excel file containing: | Name | Division | Batch |</p>
 
               <div className="space-y-6">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-text-muted uppercase tracking-widest ml-1">Starting Roll</label>
+                    <input 
+                      type="number" 
+                      value={uploadConfig.starting_roll}
+                      onChange={(e) => setUploadConfig({...uploadConfig, starting_roll: e.target.value})}
+                      className="w-full px-5 py-3 rounded-xl border border-gray-100 bg-gray-50 focus:bg-white focus:border-primary outline-none font-black text-sm transition-all"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-text-muted uppercase tracking-widest ml-1">Assign to Division</label>
+                    <select 
+                      value={uploadConfig.division_id}
+                      onChange={(e) => setUploadConfig({...uploadConfig, division_id: e.target.value})}
+                      className="w-full px-5 py-3 rounded-xl border border-gray-100 bg-gray-50 focus:bg-white focus:border-primary outline-none font-black text-sm transition-all"
+                    >
+                      <option value="">Select Div</option>
+                      {divisions.map(d => (
+                        <option key={d.id} value={d.id}>{d.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
                 <div className="flex gap-4 p-1.5 bg-gray-100 rounded-2xl">
                   {(['append', 'replace'] as const).map(mode => (
                     <button 
                       key={mode}
-                      onClick={() => setUploadMode(mode)}
+                      onClick={() => setUploadConfig({...uploadConfig, mode})}
                       className={`flex-1 py-3 text-xs font-black uppercase tracking-widest rounded-xl transition-all ${
-                        uploadMode === mode ? 'bg-white text-primary shadow-sm' : 'text-text-muted hover:text-text'
+                        uploadConfig.mode === mode ? 'bg-white text-primary shadow-sm' : 'text-text-muted hover:text-text'
                       }`}
                     >
                       {mode}
@@ -414,11 +465,11 @@ const ManageStudents = () => {
                   ))}
                 </div>
 
-                {uploadMode === 'replace' && (
+                {uploadConfig.mode === 'replace' && (
                   <div className="p-4 bg-rose-50 border border-rose-100 rounded-2xl flex gap-3 text-rose-600">
                     <AlertTriangle size={20} className="shrink-0" />
                     <p className="text-xs font-bold leading-relaxed">
-                      Warning: Replace mode will delete all existing students for this subject before uploading the new list.
+                      Warning: Replace mode will delete all existing students for AND Division before uploading.
                     </p>
                   </div>
                 )}

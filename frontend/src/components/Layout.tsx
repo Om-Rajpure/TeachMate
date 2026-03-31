@@ -5,8 +5,7 @@ import {
   CheckSquare, ListChecks, ClipboardCheck, BarChart3, 
   Bell, FileText, LogOut
 } from 'lucide-react';
-import { ToastContainer } from 'react-toastify';
-import 'react-toastify/dist/ReactToastify.css';
+import { Toaster } from 'react-hot-toast';
 import { notificationService } from '../services/api';
 import { useWebSockets } from '../hooks/useWebSockets';
 import { useAuth } from '../context/AuthContext';
@@ -179,7 +178,7 @@ const MobileNav = () => {
           </div>
         </main>
         <MobileNav />
-        <ToastContainer />
+        <Toaster position="top-right" reverseOrder={false} />
       </div>
     );
   };

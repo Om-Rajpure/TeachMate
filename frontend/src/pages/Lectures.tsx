@@ -3,13 +3,14 @@ import { useLocation } from 'react-router-dom';
 import { Plus, CheckCircle, XCircle, FileText, Calendar as CalendarIcon, BookOpen } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { lectureService, timetableService, syllabusService } from '../services/api';
-import type { Lecture, Timetable, SyllabusPlan } from '../types';
+import type { Lecture, Timetable, LecturePlan } from '../types';
+import { toast } from 'react-hot-toast';
 
 const Lectures = () => {
   const location = useLocation();
   const [lectures, setLectures] = useState<Lecture[]>([]);
   const [timetable, setTimetable] = useState<Timetable[]>([]);
-  const [syllabusPlans, setSyllabusPlans] = useState<SyllabusPlan[]>([]);
+  const [syllabusPlans, setSyllabusPlans] = useState<LecturePlan[]>([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   
@@ -76,7 +77,7 @@ const Lectures = () => {
         remarks: ''
       });
     } catch (error) {
-      alert('Error saving lecture log. Note: You might have already logged this lecture for today.');
+      toast.error('Error saving lecture log. Note: You might have already logged this lecture for today.');
     }
   };
 

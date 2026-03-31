@@ -62,18 +62,38 @@ class TimetableSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 class StudentSerializer(serializers.ModelSerializer):
-    division_name = serializers.CharField(source='division.name', read_only=True)
-    batch_name = serializers.CharField(source='batch.name', read_only=True, allow_null=True)
+    roll_number = serializers.SerializerMethodField()
+    division_name = serializers.SerializerMethodField()
+    batch_name = serializers.SerializerMethodField()
     attendance_percentage = serializers.SerializerMethodField()
 
     class Meta:
         model = Student
-        fields = '__all__'
+        fields = ['id', 'name', 'roll_number', 'division_name', 'batch_name', 'attendance_percentage', 'created_at']
+
+    def _get_link(self, obj):
+        request = self.context.get('request')
+        if not request: return None
+        subject_id = request.query_params.get('subject_id')
+        if not subject_id: return None
+        return obj.subject_links.filter(subject_id=subject_id).select_related('division', 'batch').first()
+
+    def get_roll_number(self, obj):
+        link = self._get_link(obj)
+        return link.roll_number if link else None
+
+    def get_division_name(self, obj):
+        link = self._get_link(obj)
+        return link.division.name if link and link.division else None
+
+    def get_batch_name(self, obj):
+        link = self._get_link(obj)
+        return link.batch.name if link and link.batch else None
 
     def get_attendance_percentage(self, obj):
         total = Attendance.objects.filter(student=obj).count()
         if total == 0: return 0
-        present = Attendance.objects.filter(student=obj, status='Present').count()
+        present = Attendance.objects.filter(student=obj, status='P').count()
         return round((present / total) * 100, 2)
 
 class StudentSubjectSerializer(serializers.ModelSerializer):
@@ -134,11 +154,15 @@ class MarkTypeSerializer(serializers.ModelSerializer):
 
 class MarkSerializer(serializers.ModelSerializer):
     student_name = serializers.CharField(source='student.name', read_only=True)
-    roll_number = serializers.CharField(source='student.roll_number', read_only=True)
+    roll_number = serializers.SerializerMethodField()
     mark_type_name = serializers.CharField(source='mark_type.name', read_only=True)
     max_marks = serializers.IntegerField(source='mark_type.max_marks', read_only=True)
 
     class Meta:
         model = Mark
         fields = '__all__'
+
+    def get_roll_number(self, obj):
+        link = StudentSubject.objects.filter(student=obj.student, subject=obj.subject).first()
+        return link.roll_number if link else None
 

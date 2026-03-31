@@ -14,6 +14,8 @@ export const subjectService = {
   getAll: () => api.get<Subject[]>('/subjects/'),
   getById: (id: number) => api.get<Subject>(`/subjects/${id}/`),
   create: (data: { name: string; code: string; subject_type: string }) => api.post<Subject>('/subjects/', data),
+  update: (id: number, data: Partial<Subject>) => api.put<Subject>(`/subjects/${id}/`, data),
+  delete: (id: number) => api.delete(`/subjects/${id}/`),
 };
 
 export const teacherService = {
@@ -37,6 +39,15 @@ export const timetableService = {
       headers: { 'Content-Type': 'multipart/form-data' }
     });
   },
+  getAllStructured: () => api.get('/timetable/all_grouped/'),
+  parse: (file: File) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return api.post('/timetable/parse/', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+  },
+  commit: (entries: any[]) => api.post('/timetable/commit/', entries),
 };
 
 export const lectureService = {
@@ -48,6 +59,7 @@ export const lectureService = {
     api.post('/lectures/', { timetable: timetableId, date: new Date().toISOString().split('T')[0], topic_taught: topicTaught, status: 'Completed' }),
   markSkipped: (timetableId: number, remarks: string) => 
     api.post('/lectures/', { timetable: timetableId, date: new Date().toISOString().split('T')[0], topic_taught: 'Skipped', status: 'Skipped', remarks }),
+  create: (data: any) => api.post<Lecture>('/lectures/', data),
 };
 
 export const studentService = {
@@ -59,16 +71,18 @@ export const studentService = {
     if (batchId) params.append('batch', batchId.toString());
     return api.get<Student[]>(`${url}${params.toString() ? '?' + params.toString() : ''}`);
   },
-  create: (data: { name: string; division: string; batch?: string; subject_id: number }) => 
+  create: (data: { name: string; division_id: number; batch_id?: number; roll_number: number; subject_id: number }) => 
     api.post<Student>('/students/', data),
-  update: (id: number, data: Partial<Student>) => 
+  update: (id: number, data: Partial<Student> & { division_id?: number; batch_id?: number; subject_id?: number }) => 
     api.put<Student>(`/students/${id}/`, data),
   delete: (id: number, subjectId?: number) => 
     api.delete(`/students/${id}/${subjectId ? `?subject_id=${subjectId}` : ''}`),
-  upload: (file: File, subjectId: number, mode: 'append' | 'replace' = 'append') => {
+  upload: (file: File, subjectId: number, divisionId: number, startingRoll: number, mode: 'append' | 'replace' = 'append') => {
     const formData = new FormData();
     formData.append('file', file);
     formData.append('subject_id', subjectId.toString());
+    formData.append('division_id', divisionId.toString());
+    formData.append('starting_roll', startingRoll.toString());
     formData.append('mode', mode);
     return api.post('/students/upload/', formData, {
       headers: { 'Content-Type': 'multipart/form-data' }
@@ -110,7 +124,17 @@ export const syllabusService = {
     return api.post('/syllabus/lecture-plan/upload_syllabus/', formData, {
       headers: { 'Content-Type': 'multipart/form-data' }
     });
-  }
+  },
+  resetSyllabus: (subjectId: number) => api.post('/syllabus/lecture-plan/reset/', { subject_id: subjectId }),
+  resetExperiments: (subjectId: number) => api.post('/syllabus/experiments/reset/', { subject_id: subjectId }),
+  updateLecture: (id: number, data: any) => api.put(`/syllabus/lecture-plan/${id}/`, data),
+  updateExperiment: (id: number, data: any) => api.put(`/syllabus/experiments/${id}/`, data),
+  deleteLecture: (id: number) => api.delete(`/syllabus/lecture-plan/${id}/`),
+  deleteExperiment: (id: number) => api.delete(`/syllabus/experiments/${id}/`),
+  createLecture: (data: any) => api.post('/syllabus/lecture-plan/commit/', { subject_id: data.subject, entries: [data] }),
+  createExperiment: (data: any) => api.post('/syllabus/experiments/commit/', { subject_id: data.subject, entries: [data] }),
+  commit: (subjectId: number, entries: any[]) => api.post('/syllabus/lecture-plan/commit/', { subject_id: subjectId, entries }),
+  commitExperiments: (subjectId: number, entries: any[]) => api.post('/syllabus/experiments/commit/', { subject_id: subjectId, entries }),
 };
 
 export const markService = {

@@ -51,8 +51,12 @@ class ResourceFileViewSet(viewsets.ModelViewSet):
         return queryset
 
 class SubjectViewSet(viewsets.ModelViewSet):
-    queryset = Subject.objects.all()
+    queryset = Subject.objects.filter(is_active=True)
     serializer_class = SubjectSerializer
+
+    def perform_destroy(self, instance):
+        instance.is_active = False
+        instance.save()
 
 class TeacherViewSet(viewsets.ModelViewSet):
     queryset = Teacher.objects.all()
@@ -317,19 +321,27 @@ class StudentViewSet(viewsets.ModelViewSet):
     serializer_class = StudentSerializer
 
     def get_queryset(self):
-        queryset = Student.objects.all().order_by('name')
+        from django.db import models
         subject_id = self.request.query_params.get('subject_id')
-        if subject_id:
-            queryset = Student.objects.filter(subject_links__subject_id=subject_id).order_by('name')
+        queryset = Student.objects.all()
         
-        # Additional filters
-        division = self.request.query_params.get('division', None)
-        batch = self.request.query_params.get('batch', None)
-        if division:
-            queryset = queryset.filter(division_id=division)
-        if batch:
-            queryset = queryset.filter(batch_id=batch)
-        return queryset
+        if subject_id:
+            # Filter by subject and annotate with subject-specific roll number for sorting
+            queryset = queryset.filter(subject_links__subject_id=subject_id).annotate(
+                subject_roll=models.F('subject_links__roll_number')
+            ).order_by('subject_roll', 'name')
+            
+            # Filter by division/batch if provided
+            division = self.request.query_params.get('division')
+            batch = self.request.query_params.get('batch')
+            if division:
+                queryset = queryset.filter(subject_links__division_id=division)
+            if batch:
+                queryset = queryset.filter(subject_links__batch_id=batch)
+        else:
+            queryset = queryset.order_by('name')
+            
+        return queryset.distinct()
 
     def create(self, request, *args, **kwargs):
         subject_id = request.data.get('subject_id')
@@ -337,28 +349,56 @@ class StudentViewSet(viewsets.ModelViewSet):
             return Response({'error': 'subject_id is required'}, status=status.HTTP_400_BAD_REQUEST)
         
         name = request.data.get('name', '').strip()
-        division_name = request.data.get('division', '').strip()
-        batch_name = request.data.get('batch', '').strip()
+        div_id = request.data.get('division_id') # Expecting ID now from frontend
+        batch_id = request.data.get('batch_id')
+        roll_number = request.data.get('roll_number')
 
-        if not name or not division_name:
-            return Response({'error': 'Name and Division are required'}, status=status.HTTP_400_BAD_REQUEST)
+        if not name or not div_id or roll_number is None:
+            return Response({'error': 'Name, Division, and Roll Number are required'}, status=status.HTTP_400_BAD_REQUEST)
 
-        division, _ = Division.objects.get_or_create(name=division_name)
-        batch = None
-        if batch_name:
-            batch, _ = Batch.objects.get_or_create(name=batch_name, division=division)
-
-        # Create or find student
-        student, _ = Student.objects.get_or_create(
-            name=name,
-            division=division,
-            defaults={'batch': batch}
+        # Create or find global student
+        student, _ = Student.objects.get_or_create(name=name)
+        
+        # Link to Subject with metadata
+        StudentSubject.objects.update_or_create(
+            student=student, 
+            subject_id=subject_id,
+            defaults={
+                'roll_number': roll_number,
+                'division_id': div_id,
+                'batch_id': batch_id
+            }
         )
         
-        # Link to Subject
-        StudentSubject.objects.get_or_create(student=student, subject_id=subject_id)
+        return Response(StudentSerializer(student, context={'request': request}).data, status=status.HTTP_201_CREATED)
+
+    def update(self, request, *args, **kwargs):
+        subject_id = request.data.get('subject_id')
+        student = self.get_object()
         
-        return Response(StudentSerializer(student).data, status=status.HTTP_201_CREATED)
+        # Update name if provided
+        name = request.data.get('name')
+        if name:
+            student.name = name.strip()
+            student.save()
+            
+        if subject_id:
+            div_id = request.data.get('division_id')
+            batch_id = request.data.get('batch_id')
+            roll_number = request.data.get('roll_number')
+            
+            if div_id and roll_number is not None:
+                StudentSubject.objects.update_or_create(
+                    student=student, 
+                    subject_id=subject_id,
+                    defaults={
+                        'roll_number': roll_number,
+                        'division_id': div_id,
+                        'batch_id': batch_id
+                    }
+                )
+        
+        return Response(StudentSerializer(student, context={'request': request}).data)
 
     def destroy(self, request, *args, **kwargs):
         subject_id = self.request.query_params.get('subject_id')
@@ -377,15 +417,21 @@ class StudentViewSet(viewsets.ModelViewSet):
         import pandas as pd
         file_obj = request.FILES.get('file')
         subject_id = request.data.get('subject_id')
-        mode = request.data.get('mode', 'append') # 'append' or 'replace'
+        div_id = request.data.get('division_id')
+        starting_roll = int(request.data.get('starting_roll', 1))
+        mode = request.data.get('mode', 'append') 
 
-        if not file_obj or not subject_id:
-            return Response({'error': 'File and subject_id are required'}, status=status.HTTP_400_BAD_REQUEST)
+        if not file_obj or not subject_id or not div_id:
+            return Response({'error': 'File, subject_id, and division are required'}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
             subject = Subject.objects.get(id=subject_id)
-        except Subject.DoesNotExist:
-            return Response({'error': 'Subject not found'}, status=status.HTTP_404_NOT_FOUND)
+            division = Division.objects.get(id=div_id)
+        except (Subject.DoesNotExist, Division.DoesNotExist):
+            return Response({'error': 'Subject or Division not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        if mode == 'replace':
+            StudentSubject.objects.filter(subject=subject, division=division).delete()
 
         # Save and read excel
         path = default_storage.save('tmp/' + file_obj.name, ContentFile(file_obj.read()))
@@ -394,55 +440,42 @@ class StudentViewSet(viewsets.ModelViewSet):
         try:
             df = pd.read_excel(full_path, engine='openpyxl')
             
-            # Smart Column Mapping
-            col_map = {}
+            # Find name column
+            name_col = None
             for col in df.columns:
-                c_lower = str(col).lower()
-                if 'name' in c_lower: col_map['name'] = col
-                if 'div' in c_lower: col_map['division'] = col
-                if 'batch' in c_lower: col_map['batch'] = col
+                if 'name' in str(col).lower():
+                    name_col = col
+                    break
 
-            if 'name' not in col_map:
-                return Response({'error': 'Excel must contain a column with "Name"'}, status=status.HTTP_400_BAD_REQUEST)
-
-            if mode == 'replace':
-                StudentSubject.objects.filter(subject=subject).delete()
-
-            # Find a default division if missing
-            default_division_name = "TE-A" # Prototypical default
-            if 'division' not in col_map:
-                # Try to find any existing division
-                first_div = Division.objects.first()
-                if first_div:
-                    default_division_name = first_div.name
+            if not name_col:
+                return Response({'error': 'Excel must contain a "Name" column'}, status=status.HTTP_400_BAD_REQUEST)
 
             created_count = 0
+            current_roll = starting_roll
+            
             for _, row in df.iterrows():
-                name = str(row[col_map['name']]).strip()
-                div_name = str(row[col_map['division']]).strip() if 'division' in col_map else default_division_name
-                b_name = str(row[col_map['batch']]).strip() if 'batch' in col_map else ""
+                name = str(row[name_col]).strip()
+                if not name or name == 'nan': continue
 
-                if not name or name == 'nan' or not div_name or div_name == 'nan':
-                    continue
-
-                division, _ = Division.objects.get_or_create(name=div_name)
-                batch = None
-                if b_name and b_name != 'nan':
-                    batch, _ = Batch.objects.get_or_create(name=b_name, division=division)
-
-                student, _ = Student.objects.get_or_create(
-                    name=name,
-                    division=division,
-                    defaults={'batch': batch}
-                )
+                student, _ = Student.objects.get_or_create(name=name)
                 
-                _, created = StudentSubject.objects.get_or_create(student=student, subject=subject)
-                if created:
-                    created_count += 1
+                # Lookup by (student, subject) only — matches the unique_together constraint.
+                # Division, roll_number, batch go into defaults to avoid UNIQUE violations.
+                StudentSubject.objects.update_or_create(
+                    student=student,
+                    subject=subject,
+                    defaults={
+                        'roll_number': current_roll,
+                        'division': division,
+                    }
+                )
+                current_roll += 1
+                created_count += 1
 
             return Response({
                 'message': f'Successfully processed {created_count} students.',
-                'students_added': created_count
+                'students_added': created_count,
+                'last_roll': current_roll - 1
             })
         except Exception as e:
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
@@ -537,28 +570,37 @@ class AttendanceViewSet(viewsets.ModelViewSet):
         date = request.data.get('date', timezone.localdate())
         attendance_data = request.data.get('attendance', [])
 
+        print(f"DEBUG: Marking attendance for subject={subject_id}, lecture={lecture_id}, date={date}, count={len(attendance_data)}")
+
         if not subject_id:
             return Response({'error': 'subject_id is required'}, status=status.HTTP_400_BAD_REQUEST)
         
+        if not attendance_data:
+             return Response({'error': 'attendance data is empty or missing'}, status=status.HTTP_400_BAD_REQUEST)
+
         results = []
-        for entry in attendance_data:
-            obj, _ = Attendance.objects.update_or_create(
-                student_id=entry['student_id'],
-                subject_id=subject_id,
-                lecture_id=lecture_id,
-                experiment_id=experiment_id,
-                date=date,
-                defaults={'status': entry['status']}
-            )
-            results.append(AttendanceSerializer(obj).data)
-            
-        if request.data.get('mark_completed'):
-            if lecture_id:
-                LecturePlan.objects.filter(id=lecture_id).update(status='Completed')
-            if experiment_id:
-                Experiment.objects.filter(id=experiment_id).update(status='Completed')
+        try:
+            for entry in attendance_data:
+                obj, _ = Attendance.objects.update_or_create(
+                    student_id=entry['student_id'],
+                    subject_id=subject_id,
+                    lecture_id=lecture_id,
+                    experiment_id=experiment_id,
+                    date=date,
+                    defaults={'status': entry['status']}
+                )
+                results.append(AttendanceSerializer(obj).data)
                 
-        return Response({'message': 'Attendance marked successfully', 'count': len(results)})
+            if request.data.get('mark_completed'):
+                if lecture_id:
+                    LecturePlan.objects.filter(id=lecture_id).update(status='Completed')
+                if experiment_id:
+                    Experiment.objects.filter(id=experiment_id).update(status='Completed')
+                    
+            return Response({'message': 'Attendance marked successfully', 'count': len(results)})
+        except Exception as e:
+            print(f"ERROR finalized attendance: {str(e)}")
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     @action(detail=False, methods=['get'])
     def summary(self, request):

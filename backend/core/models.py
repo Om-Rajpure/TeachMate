@@ -12,6 +12,7 @@ class Subject(models.Model):
         choices=SUBJECT_TYPES, 
         default='theory'
     )
+    is_active = models.BooleanField(default=True)
 
     def __str__(self):
         return f"{self.name} ({self.code}) - {self.get_subject_type_display()}"
@@ -65,24 +66,24 @@ class Timetable(models.Model):
 
 class Student(models.Model):
     name = models.CharField(max_length=100)
-    roll_number = models.CharField(max_length=20, blank=True, null=True)
-    division = models.ForeignKey(Division, on_delete=models.CASCADE, related_name='students')
-    batch = models.ForeignKey(Batch, on_delete=models.SET_NULL, null=True, blank=True, related_name='students')
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return f"{self.name} ({self.division.name})"
+        return self.name
 
 class StudentSubject(models.Model):
     student = models.ForeignKey(Student, on_delete=models.CASCADE, related_name='subject_links')
     subject = models.ForeignKey(Subject, on_delete=models.CASCADE, related_name='student_links')
+    roll_number = models.IntegerField(null=True, blank=True)
+    division = models.ForeignKey(Division, on_delete=models.CASCADE, null=True, blank=True)
+    batch = models.ForeignKey(Batch, on_delete=models.SET_NULL, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        unique_together = ('student', 'subject')
+        unique_together = (('student', 'subject'), ('roll_number', 'subject', 'division'))
 
     def __str__(self):
-        return f"{self.student.name} -> {self.subject.name}"
+        return f"{self.student.name} -> {self.subject.name} (Roll: {self.roll_number})"
 
 class Chapter(models.Model):
     subject = models.ForeignKey(Subject, on_delete=models.CASCADE, related_name='chapters')

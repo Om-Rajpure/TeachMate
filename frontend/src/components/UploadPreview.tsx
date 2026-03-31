@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { timetableService, syllabusService } from '../services/api';
-import { toast } from 'react-toastify';
+import { toast } from 'react-hot-toast';
 
 interface UploadPreviewProps {
   type: 'timetable' | 'syllabus';
@@ -92,7 +92,7 @@ const UploadPreview: React.FC<UploadPreviewProps> = ({ type, file, subjectId, su
       if (type === 'timetable') {
         const res = await timetableService.commit(data);
         if (res.data.warnings?.length > 0) {
-          res.data.warnings.forEach((w: string) => toast.warning(w));
+          res.data.warnings.forEach((w: string) => toast(w));
         }
         window.dispatchEvent(new CustomEvent('timetable-updated'));
         onSave(data);
@@ -107,7 +107,7 @@ const UploadPreview: React.FC<UploadPreviewProps> = ({ type, file, subjectId, su
         } else {
           const res = await syllabusService.commit(subjectId, data);
           if (res.data.warnings?.length > 0) {
-            res.data.warnings.forEach((w: string) => toast.warning(w));
+            res.data.warnings.forEach((w: string) => toast(w));
           }
           toast.success('Theory syllabus synced!');
         }
