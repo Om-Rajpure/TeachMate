@@ -2,11 +2,11 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   Plus, Clock, Users, BookOpen, Calendar, BarChart3,
-  AlertCircle, Lightbulb, CheckCircle2, XCircle, ChevronRight
+  AlertCircle, Lightbulb, CheckCircle2, XCircle, ChevronRight,
+  FileText, Presentation, Download, Eye
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { lectureService, syllabusService, notificationService } from '../services/api';
-import { useDashboardLogic } from '../hooks/useDashboardLogic';
+import { lectureService, syllabusService, notificationService, resourceService } from '../services/api';import { useDashboardLogic } from '../hooks/useDashboardLogic';
 import type { Timetable, DashboardStats, LecturePlan, Notification, Experiment } from '../types';
 import { toast } from 'react-hot-toast';
 
@@ -18,6 +18,7 @@ const Dashboard = () => {
   const [lecturePlans, setLecturePlans] = useState<LecturePlan[]>([]);
   const [experiments, setExperiments] = useState<Experiment[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [currentResources, setCurrentResources] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   // UI States
@@ -28,18 +29,20 @@ const Dashboard = () => {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [statsRes, todayRes, plansRes, expsRes, notifRes] = await Promise.all([
+      const [statsRes, todayRes, plansRes, expsRes, notifRes, resourceRes] = await Promise.all([
         lectureService.getStats(),
         lectureService.getToday(),
         syllabusService.getLecturePlans(),
         syllabusService.getExperiments(),
-        notificationService.getAll()
+        notificationService.getAll(),
+        resourceService.current()
       ]);
       setStats(statsRes.data);
       setTodayLectures(todayRes.data);
       setLecturePlans(plansRes.data);
       setExperiments(expsRes.data);
       setNotifications(notifRes.data.slice(0, 4));
+      setCurrentResources(resourceRes.data);
     } catch (error) {
       console.error('Dashboard fetch error:', error);
       toast.error('Failed to load dashboard data');
@@ -235,6 +238,41 @@ const Dashboard = () => {
           )}
         </AnimatePresence>
       </section>
+
+      {/* 1.5. ACTIVE LECTURE RESOURCES */}
+      {activeLecture && currentResources.length > 0 && (
+        <section className="animate-in fade-in slide-in-from-bottom-4 duration-1000">
+          <div className="flex items-center justify-between mb-4 px-2">
+            <h3 className="text-lg font-black text-text uppercase tracking-tighter">Resources for this session</h3>
+            <button 
+              onClick={() => navigate('/app/resources')}
+              className="text-[10px] font-black text-primary uppercase tracking-widest hover:underline"
+            >
+              View Library
+            </button>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {currentResources.map((res) => (
+              <div key={res.id} className="bg-white p-5 rounded-3xl border border-gray-100 shadow-sm hover:shadow-md transition-all flex items-center gap-4 group">
+                <div className={`p-3 rounded-2xl ${res.file_type === 'pdf' ? 'bg-rose-50 text-rose-500' : 'bg-amber-50 text-amber-500'}`}>
+                  {res.file_type === 'pdf' ? <FileText size={20} /> : <Presentation size={20} />}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h4 className="font-bold text-sm text-text truncate mb-1">{res.title}</h4>
+                  <div className="flex items-center gap-3">
+                    <a href={res.file_url} target="_blank" rel="noreferrer" className="text-[10px] font-black text-primary uppercase tracking-widest flex items-center gap-1 hover:underline">
+                      <Eye size={10} /> View
+                    </a>
+                    <a href={res.file_url} download className="text-[10px] font-black text-text-muted uppercase tracking-widest flex items-center gap-1 hover:underline">
+                      <Download size={10} /> Get
+                    </a>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* 2. QUICK ACTIONS & PROGRESS SUMMARY GRID */}
       <div className="grid lg:grid-cols-3 gap-8">

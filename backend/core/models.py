@@ -225,30 +225,63 @@ class PracticalMark(models.Model):
     def __str__(self):
         return f"{self.student.name} - {self.subject.name} Practical"
 
+from django.contrib.auth.models import User
+
 class Notification(models.Model):
     NOTIFICATION_TYPES = [
-        ('Reminder', 'Reminder'),
-        ('Warning', 'Warning'),
-        ('Info', 'Info'),
+        ('lecture_reminder', 'Lecture Reminder'),
+        ('attendance_alert', 'Attendance Alert'),
+        ('marks_alert', 'Marks Alert'),
+        ('syllabus_alert', 'Syllabus Alert'),
+        ('system_alert', 'System Alert'),
     ]
 
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='notifications', null=True, blank=True)
     title = models.CharField(max_length=200)
     message = models.TextField()
-    type = models.CharField(max_length=20, choices=NOTIFICATION_TYPES, default='Info')
+    type = models.CharField(max_length=20, choices=NOTIFICATION_TYPES, default='system_alert')
     is_read = models.BooleanField(default=False)
+    metadata = models.JSONField(default=dict, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return f"{self.type}: {self.title}"
+        return f"{self.type}: {self.title} (for {self.user.username if self.user else 'System'})"
 
-class ResourceFile(models.Model):
-    title = models.CharField(max_length=200)
-    file = models.FileField(upload_to='resources/')
+import os
+from django.core.exceptions import ValidationError
+
+def validate_resource_file(value):
+    ext = os.path.splitext(value.name)[1]
+    valid_extensions = ['.pdf', '.ppt', '.pptx']
+    if not ext.lower() in valid_extensions:
+        raise ValidationError('Unsupported file extension. Only PDF and PPT are allowed.')
+
+class Resource(models.Model):
+    FILE_TYPES = [
+        ('pdf', 'PDF Document'),
+        ('ppt', 'PowerPoint Presentation'),
+    ]
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='resources', null=True, blank=True)
     subject = models.ForeignKey(Subject, on_delete=models.CASCADE, related_name='resources')
+    title = models.CharField(max_length=200)
+    description = models.TextField(blank=True)
+    file = models.FileField(upload_to='resources/', validators=[validate_resource_file])
+    file_type = models.CharField(max_length=10, choices=FILE_TYPES, default='pdf')
+    topic_name = models.CharField(max_length=200, blank=True)
     uploaded_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
         return f"{self.subject.name} - {self.title}"
+
+    def save(self, *args, **kwargs):
+        if not self.file_type:
+            ext = os.path.splitext(self.file.name)[1].lower()
+            if ext == '.pdf':
+                self.file_type = 'pdf'
+            elif ext in ['.ppt', '.pptx']:
+                self.file_type = 'ppt'
+        super().save(*args, **kwargs)
 class Marks(models.Model):
     student = models.ForeignKey(Student, on_delete=models.CASCADE, related_name='marks')
     subject = models.ForeignKey(Subject, on_delete=models.CASCADE, related_name='marks')

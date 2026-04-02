@@ -317,6 +317,7 @@ const LandingPage = () => {
           description="A smart AI-powered system that analyzes teacher workload and behavioral patterns to detect burnout risks before they happen."
           features={["Early Detection", "Workload Analysis", "Personalized Support", "Admin Insights"]}
           buttonText="Predict Burnout"
+          link="https://facultymind-ai.vercel.app/"
           image="/burnout_prediction_mockup_1774977700537.png"
         />
 

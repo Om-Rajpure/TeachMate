@@ -1,84 +1,112 @@
-from celery import shared_task
 from django.utils import timezone
-from datetime import timedelta
-from .models import Timetable, Lecture, Attendance, Student, Notification, SyllabusProgress
-from channels.layers import get_channel_layer
-from asgiref.sync import async_to_sync
+from .models import Notification, Timetable, Student, Subject, StudentSubject, Attendance, LecturePlan, Experiment, Teacher
+from django.contrib.auth.models import User
+import datetime
 
-def send_realtime_notification(title, message, notification_type):
-    channel_layer = get_channel_layer()
-    async_to_sync(channel_layer.group_send)(
-        'notifications',
-        {
-            'type': 'send_notification',
-            'title': title,
-            'message': message,
-            'notification_type': notification_type
-        }
-    )
+def run_periodic_tasks():
+    """
+    Simulates a background task runner to generate notifications.
+    Can be run every minute via CRON or Management Command.
+    """
+    now = timezone.now()
+    current_time = now.time()
+    today_day = now.strftime('%A')
+    
+    # We'll assume the first user is the teacher for this prototype
+    user = User.objects.first()
+    if not user:
+        return
 
-@shared_task
-def check_upcoming_lectures():
-    now = timezone.localtime()
-    ten_minutes_later = now + timedelta(minutes=10)
+    subjects = Subject.objects.filter(is_active=True)
+
+    # 1. LECTURE REMINDER (Starts in 5 minutes)
+    reminder_window_start = (now + datetime.timedelta(minutes=4)).time()
+    reminder_window_end = (now + datetime.timedelta(minutes=6)).time()
     
-    # Check for lectures starting soon
-    upcoming = Timetable.objects.filter(
-        day=now.strftime('%A'),
-        start_time__range=(now.time(), ten_minutes_later.time())
+    upcoming_slots = Timetable.objects.filter(
+        day=today_day,
+        start_time__gte=reminder_window_start,
+        start_time__lte=reminder_window_end
     )
     
-    for entry in upcoming:
-        # Check if already notified or already logged
-        if not Lecture.objects.filter(timetable=entry, date=now.date()).exists():
-            msg = f"Your {entry.subject.name} lecture for {entry.division.name} starts in 10 minutes."
+    for slot in upcoming_slots:
+        title = "Lecture Starting Soon"
+        message = f"Your {slot.subject.name} ({slot.subject_type}) starts in 5 minutes in Room {slot.room or 'TBD'}."
+        
+        # Duplicate Prevention: Same slot, same day
+        exists = Notification.objects.filter(
+            user=user,
+            type='lecture_reminder',
+            title=title,
+            created_at__date=now.date(),
+            metadata__slot_id=slot.id
+        ).exists()
+        
+        if not exists:
             Notification.objects.create(
-                title="Upcoming Lecture",
-                message=msg,
-                type="Reminder"
+                user=user,
+                type='lecture_reminder',
+                title=title,
+                message=message,
+                metadata={'slot_id': slot.id}
             )
-            send_realtime_notification("Upcoming Lecture", msg, "Reminder")
 
-@shared_task
-def daily_academic_summary():
-    today = timezone.localdate()
-    lectures_count = Lecture.objects.filter(date=today, status='Completed').count()
-    
-    msg = f"You completed {lectures_count} lectures today. Keep up the good work!"
-    Notification.objects.create(
-        title="Daily Summary",
-        message=msg,
-        type="Info"
-    )
-    send_realtime_notification("Daily Summary", msg, "Info")
-
-@shared_task
-def audit_attendance_and_performance():
-    students = Student.objects.all()
-    for student in students:
-        # Attendance Check
-        total_att = Attendance.objects.filter(student=student).count()
-        if total_att > 5: # Only audit if enough data
-            present = Attendance.objects.filter(student=student, status='Present').count()
-            percent = (present / total_att) * 100
-            if percent < 75:
-                msg = f"Critical: {student.name} has dropped below 75% attendance ({round(percent, 1)}%)."
-                Notification.objects.create(
-                    title="Low Attendance Alert",
-                    message=msg,
-                    type="Warning"
+    # 2. ATTENDANCE ALERT (< 75%)
+    # Only run this once a day to avoid spam
+    if current_time.hour == 9 and current_time.minute == 0:
+        for subject in subjects:
+            low_att_students = []
+            all_students = Student.objects.filter(subject_links__subject=subject)
+            
+            for student in all_students:
+                total = Attendance.objects.filter(student=student, subject=subject).count()
+                if total >= 5: # Only alert if there's enough data
+                    present = Attendance.objects.filter(student=student, subject=subject, status='P').count()
+                    percent = (present / total) * 100
+                    if percent < 75:
+                        low_att_students.append(student.name)
+            
+            if low_att_students:
+                count = len(low_att_students)
+                title = "Low Attendance Alert"
+                message = f"{count} students have attendance below 75% in {subject.name}."
+                
+                Notification.objects.get_or_create(
+                    user=user,
+                    type='attendance_alert',
+                    title=title,
+                    message=message,
+                    created_at__date=now.date()
                 )
-                send_realtime_notification("Low Attendance Alert", msg, "Warning")
 
-@shared_task
-def check_syllabus_delay():
-    all_progress = SyllabusProgress.objects.all()
-    for prog in all_progress:
-        if prog.completion_percentage < 20: # Example logic
-             msg = f"Syllabus for {prog.subject.name} (Topic: {prog.topic_name}) is delayed."
-             Notification.objects.create(
-                title="Syllabus Delay",
-                message=msg,
-                type="Warning"
-             )
-             send_realtime_notification("Syllabus Delay", msg, "Warning")
+    # 3. SYLLABUS ALERT (Behind progress)
+    # Check if more than 50% of the semester has passed but less than 40% syllabus is done
+    # For prototype: Check if more than 5 lectures are pending when they should be done
+    for subject in subjects:
+        total_p = LecturePlan.objects.filter(subject=subject).count()
+        done_p = LecturePlan.objects.filter(subject=subject, status='Completed').count()
+        
+        if total_p > 0:
+            progress = (done_p / total_p) * 100
+            # Simple logic: If it's late in the week but progress is low
+            if today_day in ['Thursday', 'Friday'] and progress < 30:
+                title = "Syllabus Progress Lagging"
+                message = f"Syllabus for {subject.name} is only {round(progress)}% complete. Consider accelerating."
+                
+                Notification.objects.get_or_create(
+                    user=user,
+                    type='syllabus_alert',
+                    title=title,
+                    message=message,
+                    created_at__date=now.date()
+                )
+
+    # 4. SYSTEM ALERT (Daily Summary)
+    if current_time.hour == 18 and current_time.minute == 0:
+        done_today = Attendance.objects.filter(date=now.date()).values('subject').distinct().count()
+        Notification.objects.create(
+            user=user,
+            type='system_alert',
+            title="Daily Summary",
+            message=f"You successfully marked attendance for {done_today} sessions today."
+        )

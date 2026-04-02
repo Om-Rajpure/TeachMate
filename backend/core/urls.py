@@ -7,7 +7,7 @@ from .views import (
     StudentViewSet, AttendanceViewSet, 
     ChapterViewSet, LecturePlanViewSet,
     TheoryMarkViewSet, PracticalMarkViewSet, MarkUploadView, AnalyticsViewSet,
-    NotificationViewSet, ResourceFileViewSet, ExperimentViewSet, MarksViewSet
+    NotificationViewSet, ResourceViewSet, ExperimentViewSet, MarksViewSet
 )
 
 router = DefaultRouter()
@@ -26,7 +26,7 @@ router.register(r'syllabus/experiments', ExperimentViewSet)
 router.register(r'marks/theory', TheoryMarkViewSet)
 router.register(r'marks/practical', PracticalMarkViewSet)
 router.register(r'notifications', NotificationViewSet)
-router.register(r'files', ResourceFileViewSet)
+router.register(r'resources', ResourceViewSet)
 router.register(r'analytics', AnalyticsViewSet, basename='analytics')
 
 urlpatterns = [

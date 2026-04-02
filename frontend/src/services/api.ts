@@ -192,18 +192,18 @@ export const analyticsService = {
 
 export const notificationService = {
   getAll: () => api.get('/notifications/'),
+  getUnreadCount: () => api.get<{ unread_count: number }>('/notifications/unread-count/'),
   markAsRead: (id: number) => api.post(`/notifications/${id}/mark_as_read/`),
   markAllAsRead: () => api.post('/notifications/mark_all_as_read/'),
 };
 
 export const resourceService = {
-  getAll: (subjectId?: number) => api.get(`/files/${subjectId ? `?subject=${subjectId}` : ''}`),
-  upload: (data: FormData) => api.post('/files/', data, {
+  getAll: (subjectId?: number) => api.get(`/resources/${subjectId ? `?subject=${subjectId}` : ''}`),
+  upload: (data: FormData) => api.post('/resources/', data, {
     headers: { 'Content-Type': 'multipart/form-data' }
   }),
-  delete: (id: number) => api.delete(`/files/${id}/`),
+  delete: (id: number) => api.delete(`/resources/${id}/`),
+  current: () => api.get('/resources/current/'),
 };
-
-export const resourceFileService = resourceService;
 
 export default api;

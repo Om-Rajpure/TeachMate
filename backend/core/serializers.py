@@ -2,7 +2,7 @@ from rest_framework import serializers
 from .models import (
     Subject, Teacher, Division, Batch, Timetable, Lecture, 
     Student, StudentSubject, Attendance, Chapter, LecturePlan,
-    Notification, ResourceFile, Experiment, TheoryMark, PracticalMark, Marks
+    Notification, Resource, Experiment, TheoryMark, PracticalMark, Marks
 )
 
 class ExperimentSerializer(serializers.ModelSerializer):
@@ -17,13 +17,13 @@ class NotificationSerializer(serializers.ModelSerializer):
         model = Notification
         fields = '__all__'
 
-class ResourceFileSerializer(serializers.ModelSerializer):
+class ResourceSerializer(serializers.ModelSerializer):
     subject_name = serializers.CharField(source='subject.name', read_only=True)
     file_url = serializers.SerializerMethodField()
 
     class Meta:
-        model = ResourceFile
-        fields = ['id', 'title', 'file', 'file_url', 'subject', 'subject_name', 'uploaded_at']
+        model = Resource
+        fields = ['id', 'user', 'subject', 'subject_name', 'title', 'description', 'file', 'file_url', 'file_type', 'topic_name', 'uploaded_at']
 
     def get_file_url(self, obj):
         request = self.context.get('request')

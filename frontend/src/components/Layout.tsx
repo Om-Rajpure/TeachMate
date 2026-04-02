@@ -1,14 +1,15 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { 
   LayoutDashboard, Users, User, 
   CheckSquare, ListChecks, BarChart3, 
-  Bell, LogOut, Calendar, GraduationCap
+  Bell, LogOut, Calendar, GraduationCap, FolderOpen
 } from 'lucide-react';
 import { Toaster } from 'react-hot-toast';
+import { motion, AnimatePresence } from 'framer-motion';
 import { notificationService } from '../services/api';
-import { useWebSockets } from '../hooks/useWebSockets';
 import { useAuth } from '../context/AuthContext';
+import NotificationDropdown from './NotificationDropdown';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
@@ -27,6 +28,7 @@ const Sidebar = () => {
     { name: 'Attendance', icon: CheckSquare, path: '/app/attendance' },
     { name: 'Marks', icon: GraduationCap, path: '/app/marks' },
     { name: 'Syllabus', icon: ListChecks, path: '/app/syllabus' },
+    { name: 'Resources', icon: FolderOpen, path: '/app/resources' },
     { name: 'Analytics', icon: BarChart3, path: '/app/analytics' },
   ];
 
@@ -92,6 +94,7 @@ const MobileNav = () => {
     { name: 'Time', icon: Calendar, path: '/app/timetable' },
     { name: 'Students', icon: Users, path: '/app/students' },
     { name: 'Attend', icon: CheckSquare, path: '/app/attendance' },
+    { name: 'Resources', icon: FolderOpen, path: '/app/resources' },
     { name: 'Analytics', icon: BarChart3, path: '/app/analytics' },
   ];
 
@@ -117,24 +120,58 @@ const MobileNav = () => {
     const { pathname } = useLocation();
     const { user } = useAuth();
     const [unreadCount, setUnreadCount] = useState(0);
+    const [notifications, setNotifications] = useState<any[]>([]);
+    const [showDropdown, setShowDropdown] = useState(false);
+    const dropdownRef = useRef<HTMLDivElement>(null);
   
-    const fetchUnread = useCallback(async () => {
+    const fetchNotifications = useCallback(async () => {
        try {
           const res = await notificationService.getAll();
-          setUnreadCount(res.data.filter((n: any) => !n.is_read).length);
+          const latestNotifications = res.data;
+          setNotifications(latestNotifications);
+          
+          const countRes = await notificationService.getUnreadCount();
+          const newCount = countRes.data.unread_count;
+
+          // Browser Notification Trigger
+          if (newCount > unreadCount && Notification.permission === 'granted' && unreadCount > 0) {
+             const newItems = latestNotifications.filter((n: any) => !n.is_read);
+             if (newItems.length > 0) {
+                new window.Notification(newItems[0].title, {
+                   body: newItems[0].message,
+                });
+             }
+          }
+          
+          setUnreadCount(newCount);
        } catch (err) {
          console.error(err);
        }
-    }, []);
+    }, [unreadCount]);
   
     useEffect(() => {
-      fetchUnread();
-    }, [fetchUnread]);
-  
-    useWebSockets(() => {
-      fetchUnread();
-    });
+      fetchNotifications();
+      const interval = setInterval(fetchNotifications, 30000);
+      
+      // Request Browser Notification Permission
+      if (Notification.permission === 'default') {
+        Notification.requestPermission();
+      }
 
+      return () => clearInterval(interval);
+    }, [fetchNotifications]);
+
+    // Close dropdown on click outside
+    useEffect(() => {
+      const handleClickOutside = (event: MouseEvent) => {
+        if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+          setShowDropdown(false);
+        }
+      };
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+  
     const displayName = user?.first_name || user?.username || 'Teacher';
   
     const pageTitle = pathname === '/app/dashboard' ? 'Overview' 
@@ -152,19 +189,45 @@ const MobileNav = () => {
       <header className="fixed top-0 left-0 lg:left-64 right-0 h-16 bg-white/80 backdrop-blur-md z-30 px-6 py-4 border-b border-gray-100 flex items-center justify-between shadow-sm">
         <h1 className="text-xl font-black text-text italic tracking-tighter leading-tight">{pageTitle}</h1>
         <div className="flex items-center gap-6">
-          <NavLink to="/app/notifications" className="relative p-2 hover:bg-gray-100 rounded-xl transition-colors text-text-muted hover:text-primary">
-             <Bell size={24} />
-             {unreadCount > 0 && (
-               <span className="absolute top-1 right-1 w-5 h-5 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center border-2 border-white animate-pulse">
-                 {unreadCount}
-               </span>
-             )}
-          </NavLink>
+          <div className="relative" ref={dropdownRef}>
+            <button 
+              onClick={() => setShowDropdown(!showDropdown)}
+              className="relative p-2 hover:bg-gray-100 rounded-xl transition-all duration-300 text-text-muted hover:text-primary active:scale-90"
+            >
+               <Bell size={24} />
+               <AnimatePresence>
+                {unreadCount > 0 && (
+                  <motion.span 
+                    initial={{ scale: 0, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    exit={{ scale: 0, opacity: 0 }}
+                    className="absolute top-1 right-1 w-5 h-5 bg-red-500 text-white text-[10px] font-black rounded-full flex items-center justify-center border-2 border-white shadow-sm"
+                  >
+                    {unreadCount}
+                  </motion.span>
+                )}
+               </AnimatePresence>
+            </button>
+
+            <AnimatePresence>
+              {showDropdown && (
+                <NotificationDropdown 
+                  notifications={notifications}
+                  onClose={() => setShowDropdown(false)}
+                  onRefresh={fetchNotifications}
+                />
+              )}
+            </AnimatePresence>
+          </div>
+
           <div className="hidden lg:flex items-center gap-3 pl-4 border-l border-gray-100">
-             <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-primary">
-               <User size={18} />
+             <div className="w-10 h-10 rounded-2xl bg-blue-50 border border-blue-100 flex items-center justify-center text-primary shadow-sm group hover:scale-105 transition-transform duration-300">
+               <User size={18} className="group-hover:scale-110 transition-transform" />
              </div>
-             <span className="font-bold text-sm text-text">{displayName}</span>
+             <div className="flex flex-col">
+               <span className="font-bold text-xs text-text leading-tight">{displayName}</span>
+               <span className="text-[10px] font-black text-text-muted uppercase tracking-tighter">Professor</span>
+             </div>
           </div>
         </div>
       </header>

@@ -1,4 +1,5 @@
-from rest_framework import viewsets, status
+from django.contrib.auth.models import User
+from rest_framework import viewsets, status, permissions
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from django.utils import timezone
@@ -6,14 +7,14 @@ from django.shortcuts import get_object_or_404
 from .models import (
     Subject, Teacher, Division, Batch, Timetable, Lecture, Student, StudentSubject,
     Attendance, Chapter, LecturePlan,
-    Notification, ResourceFile, Experiment, TheoryMark, PracticalMark, Marks
+    Notification, Resource, Experiment, TheoryMark, PracticalMark, Marks
 )
 from .serializers import (
     SubjectSerializer, TeacherSerializer, DivisionSerializer, 
     BatchSerializer, TimetableSerializer, LectureSerializer,
     StudentSerializer, AttendanceSerializer, 
     ChapterSerializer, LecturePlanSerializer,
-    NotificationSerializer, ResourceFileSerializer,
+    NotificationSerializer, ResourceSerializer,
     ExperimentSerializer, TheoryMarkSerializer, PracticalMarkSerializer, MarksSerializer
 )
 from .utils import TimetableParser
@@ -25,29 +26,95 @@ from django.core.files.base import ContentFile
 class NotificationViewSet(viewsets.ModelViewSet):
     queryset = Notification.objects.all().order_by('-created_at')
     serializer_class = NotificationSerializer
+    permission_classes = [permissions.AllowAny]
+
+    def get_queryset(self):
+        user = self.request.user
+        if not user.is_authenticated:
+            # Fallback for dev/simulated login
+            user = User.objects.first()
+        
+        if user:
+            return Notification.objects.filter(user=user).order_by('-created_at')
+        return Notification.objects.none()
 
     @action(detail=True, methods=['post'])
-    def read(self, request, pk=None):
+    def mark_as_read(self, request, pk=None):
         notification = self.get_object()
         notification.is_read = True
         notification.save()
         return Response({'status': 'notification marked as read'})
 
-    @action(detail=False, methods=['post'], url_path='read-all')
-    def read_all(self, request):
-        Notification.objects.filter(is_read=False).update(is_read=True)
+    @action(detail=False, methods=['post'], url_path='mark_all_as_read')
+    def mark_all_as_read(self, request):
+        user = request.user if request.user.is_authenticated else User.objects.first()
+        if user:
+            Notification.objects.filter(user=user, is_read=False).update(is_read=True)
         return Response({'status': 'all notifications marked as read'})
 
-class ResourceFileViewSet(viewsets.ModelViewSet):
-    queryset = ResourceFile.objects.all().order_by('-uploaded_at')
-    serializer_class = ResourceFileSerializer
+    @action(detail=False, methods=['get'], url_path='unread-count')
+    def unread_count(self, request):
+        user = request.user if request.user.is_authenticated else User.objects.first()
+        count = Notification.objects.filter(user=user, is_read=False).count() if user else 0
+        return Response({'unread_count': count})
+
+class ResourceViewSet(viewsets.ModelViewSet):
+    queryset = Resource.objects.all().order_by('-uploaded_at')
+    serializer_class = ResourceSerializer
 
     def get_queryset(self):
-        queryset = ResourceFile.objects.all()
+        # Only show resources for the logged-in user
+        user = self.request.user if self.request.user.is_authenticated else User.objects.first()
+        queryset = Resource.objects.filter(user=user).order_by('-uploaded_at')
+        
         subject_id = self.request.query_params.get('subject', None)
         if subject_id:
             queryset = queryset.filter(subject_id=subject_id)
+        
         return queryset
+
+    def perform_create(self, serializer):
+        user = self.request.user if self.request.user.is_authenticated else User.objects.first()
+        serializer.save(user=user)
+
+    @action(detail=False, methods=['get'])
+    def current(self, request):
+        """Fetch resources relevant to the current lecture/practical."""
+        import datetime
+        now = datetime.datetime.now()
+        day = now.strftime('%A')
+        current_time = now.time()
+        
+        slot = Timetable.objects.filter(
+            day=day, 
+            start_time__lte=current_time, 
+            end_time__gte=current_time
+        ).first()
+        
+        if not slot:
+            return Response([])
+
+        # Match by subject
+        resources = Resource.objects.filter(subject=slot.subject)
+        
+        # Match by topic if possible
+        topic_name = ""
+        if slot.subject_type == 'theory':
+            next_topic = LecturePlan.objects.filter(subject=slot.subject, status='Pending').first()
+            if next_topic:
+                topic_name = next_topic.topic_name
+        else:
+            next_exp = Experiment.objects.filter(subject=slot.subject, status='Pending').first()
+            if next_exp:
+                topic_name = next_exp.title
+        
+        if topic_name:
+            # Filter specifically for this topic if resources exist, otherwise return subject resources
+            topic_resources = resources.filter(topic_name__icontains=topic_name)
+            if topic_resources.exists():
+                resources = topic_resources
+
+        return Response(ResourceSerializer(resources, many=True, context={'request': request}).data)
 
 class SubjectViewSet(viewsets.ModelViewSet):
     queryset = Subject.objects.filter(is_active=True)
