@@ -34,7 +34,8 @@ const UploadPreview: React.FC<UploadPreviewProps> = ({ type, file, subjectId, su
           }));
           setData(entriesWithIds);
         } else {
-          const res = await syllabusService.parse(file, subjectType || 'theory');
+          if (!subjectId) throw new Error('No subject selected');
+          const res = await syllabusService.parse(file, subjectId, subjectType || 'theory');
           if (subjectType === 'practical') {
             const { entries, has_assignments, has_mini_project } = res.data;
             setData(entries.map((entry: any, index: number) => ({

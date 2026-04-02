@@ -307,6 +307,12 @@ class TimetableParser:
             return None
 
         actual_cols = {k: find_col(v) for k, v in col_map.items()}
+
+        # Validation: check for required columns
+        if not actual_cols['topic_name']:
+             raise ValueError("Topics column not found (Topics/Topic Name/Syllabus Topic)")
+        if not actual_cols['chapter_name']:
+             raise ValueError("Chapter Name column not found (Chapter Name/Chapter/Unit/Module)")
         
         # Handle merged cells for Chapter and CO
         for key in ['chapter_name', 'co', 'lecture_count']:
@@ -357,6 +363,9 @@ class TimetableParser:
                     'topic_name': topic
                 })
 
+        if not entries:
+            raise ValueError("No valid topics found in file")
+
         return entries
 
     @staticmethod
@@ -394,6 +403,8 @@ class TimetableParser:
             text_cols = df.select_dtypes(include=['object']).columns
             if len(text_cols) > 0:
                 actual_cols['title'] = text_cols[0]
+            else:
+                 raise ValueError("No Experiment Title column found")
 
         entries = []
         for _, row in df.iterrows():
@@ -412,6 +423,9 @@ class TimetableParser:
                 'experiment_number': exp_no,
                 'title': title
             })
+
+        if not entries:
+             raise ValueError("No valid experiments found in file")
 
         return {
             "entries": entries,

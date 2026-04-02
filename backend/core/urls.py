@@ -7,7 +7,8 @@ from .views import (
     StudentViewSet, AttendanceViewSet, 
     ChapterViewSet, LecturePlanViewSet,
     TheoryMarkViewSet, PracticalMarkViewSet, MarkUploadView, AnalyticsViewSet,
-    NotificationViewSet, ResourceViewSet, ExperimentViewSet, MarksViewSet
+    NotificationViewSet, ResourceViewSet, ExperimentViewSet, MarksViewSet,
+    upload_syllabus
 )
 
 router = DefaultRouter()
@@ -31,6 +32,7 @@ router.register(r'analytics', AnalyticsViewSet, basename='analytics')
 
 urlpatterns = [
     path('', include(router.urls)),
+    path('syllabus/<int:subject_id>/upload/', upload_syllabus, name='upload-syllabus'),
     path('marks/upload/', MarkUploadView.as_view(), name='marks-upload'),
     path('auth/login/', auth_views.login_view, name='auth-login'),
     path('auth/logout/', auth_views.logout_view, name='auth-logout'),

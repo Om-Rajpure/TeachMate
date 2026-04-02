@@ -1,6 +1,6 @@
 from django.contrib.auth.models import User
 from rest_framework import viewsets, status, permissions
-from rest_framework.decorators import action
+from rest_framework.decorators import action, api_view
 from rest_framework.response import Response
 from django.utils import timezone
 from django.shortcuts import get_object_or_404
@@ -1352,3 +1352,35 @@ class MarksViewSet(viewsets.ModelViewSet):
     def list_by_subject(self, request, subject_id=None):
         marks = Marks.objects.filter(subject_id=subject_id)
         return Response(MarksSerializer(marks, many=True).data)
+
+@api_view(['POST'])
+def upload_syllabus(request, subject_id):
+    """
+    Standardized syllabus host using the new URL structure.
+    Expected by frontend: Returns parsed entries for verification.
+    """
+    file_obj = request.FILES.get('file')
+    if not file_obj:
+        return Response({'error': 'No file provided'}, status=status.HTTP_400_BAD_REQUEST)
+
+    # Save temporarily to parse
+    path = default_storage.save('tmp/' + file_obj.name, ContentFile(file_obj.read()))
+    full_path = os.path.join(settings.MEDIA_ROOT, path)
+
+    try:
+        subject = get_object_or_404(Subject, id=subject_id)
+        
+        # Use existing robust parser
+        if subject.subject_type == 'practical':
+            data = TimetableParser.parse_practical(full_path)
+        else:
+            data = TimetableParser.parse_syllabus(full_path)
+        
+        print(f"DEBUG: Parsed {len(data) if isinstance(data, list) else 'meta'} entries for subject {subject_id}")
+        return Response(data)
+    except Exception as e:
+        print(f"ERROR: Syllabus Upload failed: {str(e)}")
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    finally:
+        if os.path.exists(full_path):
+            os.remove(full_path)

@@ -119,11 +119,11 @@ export const syllabusService = {
   getChapters: (subjectId?: number) => api.get<Chapter[]>(`/syllabus/chapters/${subjectId ? `?subject=${subjectId}` : ''}`),
   getLecturePlans: (subjectId?: number) => api.get<LecturePlan[]>(`/syllabus/lecture-plan/${subjectId ? `?subject=${subjectId}` : ''}`),
   getExperiments: (subjectId?: number) => api.get<any[]>(`/syllabus/experiments/${subjectId ? `?subject=${subjectId}` : ''}`),
-  parse: (file: File, type: 'theory' | 'practical' = 'theory') => {
+  parse: (file: File, subjectId: number, type: 'theory' | 'practical' = 'theory') => {
     const formData = new FormData();
     formData.append('file', file);
     formData.append('type', type);
-    return api.post('/syllabus/lecture-plan/upload_syllabus/', formData, {
+    return api.post(`/syllabus/${subjectId}/upload/`, formData, {
       headers: { 'Content-Type': 'multipart/form-data' }
     });
   },
