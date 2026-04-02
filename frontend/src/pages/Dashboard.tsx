@@ -120,7 +120,7 @@ const Dashboard = () => {
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-white rounded-[2rem] border border-gray-100 shadow-xl shadow-primary/5 overflow-hidden"
+              className="bg-white rounded-3xl border border-gray-100 shadow-xl overflow-hidden"
             >
               <div className="p-8 md:p-10 flex flex-col md:flex-row justify-between gap-8">
                 <div className="space-y-4">
@@ -148,7 +148,7 @@ const Dashboard = () => {
                   <button 
                     onClick={() => setIsLectureExpanded(!isLectureExpanded)}
                     disabled={activeLecture.lecture_status === 'Completed' || isSubmitting}
-                    className="px-8 py-4 bg-primary text-white rounded-2xl font-bold flex items-center gap-2 shadow-lg shadow-primary/20 hover:bg-primary-dark transition-all active:scale-95 disabled:opacity-50"
+                    className="px-8 py-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-2xl font-bold flex items-center gap-2 shadow-lg hover:scale-105 transition-all duration-300 active:scale-95 disabled:opacity-50"
                   >
                     {activeLecture.lecture_status === 'Completed' ? <CheckCircle2 size={20} /> : <Plus size={20} />}
                     {activeLecture.lecture_status === 'Completed' ? 'Already Done' : 'Start Lecture'}
@@ -216,7 +216,7 @@ const Dashboard = () => {
               key="upcoming"
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              className="bg-white rounded-[2rem] border border-gray-100 p-8 flex items-center justify-between"
+              className="bg-white rounded-3xl border border-gray-100 p-8 flex items-center justify-between shadow-lg"
             >
               <div>
                 <h2 className="text-2xl font-bold text-text">No active lecture right now</h2>
@@ -227,7 +227,7 @@ const Dashboard = () => {
               
               <button 
                 onClick={() => navigate('/app/timetable')}
-                className="px-6 py-3 bg-primary text-white font-bold rounded-2xl shadow-lg shadow-primary/20 hover:bg-primary-dark transition-all active:scale-95"
+                className="px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-bold rounded-2xl shadow-lg hover:scale-105 transition-all duration-300 active:scale-95"
               >
                 View Timetable
               </button>
@@ -252,7 +252,7 @@ const Dashboard = () => {
               <button 
                 key={action.label}
                 onClick={() => navigate(action.path)}
-                className="group flex flex-col items-center justify-center p-6 bg-white border border-gray-100 rounded-[2rem] hover:shadow-xl hover:shadow-primary/5 hover:border-primary/20 transition-all duration-300 text-center"
+                className="group flex flex-col items-center justify-center p-6 bg-white border border-gray-100 rounded-3xl hover:shadow-2xl hover:border-primary/20 transition-all duration-300 text-center shadow-lg"
               >
                 <div className={`${action.bg} ${action.color} p-4 rounded-2xl mb-3 group-hover:scale-110 transition-transform`}>
                   <action.icon size={24} />
@@ -270,7 +270,7 @@ const Dashboard = () => {
         {/* Progress Summary */}
         <section className="space-y-4">
           <h3 className="text-lg font-bold text-text ml-2">Learning Progress</h3>
-          <div className="bg-white p-8 rounded-[2rem] border border-gray-100 space-y-8">
+          <div className="bg-white p-8 rounded-3xl border border-gray-100 shadow-lg space-y-8">
             <div className="space-y-3">
               <div className="flex justify-between text-sm font-bold">
                 <span className="text-text-muted uppercase tracking-wider text-[10px]">Avg Attendance</span>
@@ -321,7 +321,7 @@ const Dashboard = () => {
           </div>
           <div className="space-y-3">
             {todayLectures.length === 0 ? (
-              <div className="p-10 text-center bg-gray-50 rounded-[2rem] border-2 border-dashed border-gray-200 text-text-muted">
+              <div className="p-10 text-center bg-gray-50 rounded-3xl border-2 border-dashed border-gray-200 text-text-muted">
                 No lectures found. Upload a timetable to get started.
               </div>
             ) : (

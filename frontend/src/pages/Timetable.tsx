@@ -90,13 +90,13 @@ const Timetable: React.FC = () => {
           <div className="flex items-center gap-1 p-1 bg-gray-50 rounded-2xl border border-gray-100 shadow-inner">
             <button 
                 onClick={() => setViewMode('grid')}
-                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${viewMode === 'grid' ? 'bg-primary text-white shadow-lg shadow-primary/20' : 'text-text-muted hover:text-text'}`}
+                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${viewMode === 'grid' ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg' : 'text-text-muted hover:text-text'}`}
             >
                 <Grid3X3 size={12} /> Grid
             </button>
             <button 
                 onClick={() => setViewMode('list')}
-                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${viewMode === 'list' ? 'bg-primary text-white shadow-lg shadow-primary/20' : 'text-text-muted hover:text-text'}`}
+                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${viewMode === 'list' ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg' : 'text-text-muted hover:text-text'}`}
             >
                 <TableIcon size={12} /> List
             </button>
@@ -104,7 +104,7 @@ const Timetable: React.FC = () => {
 
           <button 
             onClick={() => setShowUploadModal(true)}
-            className="flex items-center gap-2 px-6 py-3 bg-white border border-gray-100 text-primary font-bold rounded-2xl hover:bg-gray-50 transition-all shadow-sm"
+            className="flex items-center gap-2 px-6 py-3 bg-white border border-gray-100 text-primary font-bold rounded-2xl hover:bg-gray-50 transition-all shadow-lg active:scale-95"
           >
             <Upload size={18} />
             <span>{hasData ? 'Update Timetable' : 'Upload Timetable'}</span>
@@ -119,21 +119,21 @@ const Timetable: React.FC = () => {
                 key="empty"
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
-                className="p-32 text-center bg-white rounded-[4rem] border-2 border-dashed border-gray-100 flex flex-col items-center"
+                className="p-32 text-center bg-white rounded-3xl border-2 border-dashed border-gray-100 flex flex-col items-center shadow-lg"
             >
-                <div className="w-24 h-24 bg-primary/5 text-primary rounded-[2.5rem] flex items-center justify-center mb-8">
+                <div className="w-24 h-24 bg-primary/5 text-primary rounded-2xl flex items-center justify-center mb-8">
                     <Upload size={48} />
                 </div>
-                <h2 className="text-3xl font-black text-text mb-4">No Timetable Detected</h2>
+                <h2 className="text-3xl font-bold text-text mb-4">No Timetable Detected</h2>
                 <p className="text-text-muted font-medium max-w-sm mb-10 leading-relaxed">
                     Personalize your academic grid by uploading your timetable Excel or PDF document.
                 </p>
                 <button 
                     onClick={() => setShowUploadModal(true)}
-                    className="px-10 py-5 bg-primary text-white font-bold rounded-2xl shadow-xl shadow-primary/20 hover:bg-primary-dark transition-all active:scale-95 flex items-center gap-3"
+                    className="px-10 py-5 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-bold rounded-2xl shadow-xl hover:scale-105 transition-all duration-300 active:scale-95 flex items-center gap-3"
                 >
                     <Upload size={20} />
-                    Upload Excelfile
+                    Upload Excel file
                 </button>
             </motion.div>
           ) : isMobile ? (
@@ -184,7 +184,7 @@ const Timetable: React.FC = () => {
               initial={{ scale: 0.9, opacity: 0, y: 20 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.9, opacity: 0, y: 20 }}
-              className="relative w-full max-w-lg bg-white rounded-[2.5rem] p-10 shadow-2xl overflow-hidden"
+              className="relative w-full max-w-lg bg-white rounded-3xl p-10 shadow-2xl overflow-hidden"
             >
               <div className="flex items-center justify-between mb-2">
                 <h3 className="text-2xl font-black text-text">Upload Timetable</h3>

@@ -165,7 +165,7 @@ const ManageStudents = () => {
   }
 
   return (
-    <div className="space-y-8 pb-20 max-w-7xl mx-auto px-4 md:px-0">
+    <div className="space-y-8 pb-20">
       {/* Header Section */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div className="space-y-4">
@@ -189,14 +189,14 @@ const ManageStudents = () => {
         <div className="flex flex-wrap gap-3">
           <button 
             onClick={() => setShowUploadModal(true)}
-            className="flex items-center gap-2 px-6 py-3 bg-white border border-gray-100 text-primary font-bold rounded-2xl hover:bg-gray-50 transition-all shadow-sm"
+            className="flex items-center gap-2 px-6 py-3 bg-white border border-gray-100 text-primary font-bold rounded-2xl hover:bg-gray-50 transition-all shadow-lg active:scale-95"
           >
             <Upload size={18} />
             <span>Bulk Upload</span>
           </button>
           <button 
             onClick={() => { setEditingStudent(null); setShowAddModal(true); }}
-            className="flex items-center gap-2 px-6 py-3 bg-primary text-white font-bold rounded-2xl hover:bg-primary-dark transition-all shadow-lg shadow-primary/20"
+            className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-bold rounded-2xl hover:scale-105 transition-all duration-300 shadow-xl active:scale-95"
           >
             <Plus size={18} />
             <span>Add Student</span>
@@ -204,7 +204,7 @@ const ManageStudents = () => {
         </div>
       </div>
 
-      <div className="bg-white p-4 rounded-[2.5rem] border border-gray-100 shadow-xl shadow-primary/5 flex flex-col md:flex-row md:items-center gap-4">
+      <div className="bg-white p-4 rounded-3xl border border-gray-100 shadow-xl flex flex-col md:flex-row md:items-center gap-4">
         <div className="relative flex-1">
           <span className="absolute left-4 top-1/2 -translate-y-1/2 text-text-muted">
             <Search size={18} />
@@ -234,7 +234,7 @@ const ManageStudents = () => {
       </div>
 
       {/* Student List */}
-      <div className="bg-white rounded-[2.5rem] border border-gray-100 overflow-hidden shadow-sm shadow-primary/5">
+      <div className="bg-white rounded-3xl border border-gray-100 overflow-hidden shadow-lg">
         <div className="overflow-x-auto">
           <table className="w-full text-left">
             <thead className="bg-gray-50/80 border-b border-gray-100">
@@ -340,7 +340,7 @@ const ManageStudents = () => {
               initial={{ scale: 0.9, opacity: 0, y: 20 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.9, opacity: 0, y: 20 }}
-              className="relative w-full max-w-md bg-white rounded-[2.5rem] p-10 shadow-2xl"
+              className="relative w-full max-w-md bg-white rounded-3xl p-10 shadow-2xl"
             >
               <div className="flex items-center justify-between mb-8">
                 <h3 className="text-2xl font-black text-text">
@@ -395,7 +395,7 @@ const ManageStudents = () => {
                 <div className="pt-4">
                   <button 
                     disabled={isSubmitting}
-                    className="w-full py-4 bg-primary text-white rounded-2xl font-black shadow-lg shadow-primary/20 hover:bg-primary-dark transition-all disabled:opacity-50"
+                    className="w-full py-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-2xl font-black shadow-xl hover:scale-105 transition-all duration-300 active:scale-95 disabled:opacity-50"
                   >
                     {isSubmitting ? 'Saving...' : editingStudent ? 'Update Details' : 'Add to Subject'}
                   </button>
@@ -419,7 +419,7 @@ const ManageStudents = () => {
               initial={{ scale: 0.9, opacity: 0, y: 20 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.9, opacity: 0, y: 20 }}
-              className="relative w-full max-w-lg bg-white rounded-[2.5rem] p-10 shadow-2xl overflow-hidden"
+              className="relative w-full max-w-lg bg-white rounded-3xl p-10 shadow-2xl overflow-hidden"
             >
               <div className="flex items-center justify-between mb-2">
                 <h3 className="text-2xl font-black text-text">Bulk Student Upload</h3>
@@ -517,11 +517,11 @@ const ManageStudents = () => {
                 <button 
                   onClick={handleUpload}
                   disabled={!uploadFile || isSubmitting}
-                  className="w-full py-5 bg-primary text-white rounded-2xl font-black shadow-xl shadow-primary/20 hover:bg-primary-dark transition-all disabled:opacity-50 flex items-center justify-center gap-3"
+                  className="w-full py-5 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-2xl font-black shadow-xl hover:scale-105 transition-all duration-300 active:scale-95 disabled:opacity-50 flex items-center justify-center gap-3"
                 >
                   {isSubmitting ? (
                     <span className="flex items-center gap-2">
-                       <span className="animate-spin">◌</span> Processing...
+                       <span className="animate-spin text-xl">◌</span> Processing...
                     </span>
                   ) : (
                     <>Start Bulk Processing <Download size={20} /></>

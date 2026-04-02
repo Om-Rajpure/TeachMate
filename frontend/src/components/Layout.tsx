@@ -38,22 +38,27 @@ const Sidebar = () => {
   const displayName = user?.first_name || user?.username || 'Teacher';
 
   return (
-    <aside className="hidden lg:flex flex-col w-64 bg-white h-screen sticky top-0 border-r border-gray-100 p-6 z-20">
+    <aside className="hidden lg:flex flex-col w-64 bg-white fixed left-0 top-0 h-full border-r border-gray-100 p-6 z-40 shadow-sm">
       <div className="flex items-center gap-2 mb-10 px-2">
         <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center text-white font-bold text-lg">T</div>
         <span className="font-bold text-xl tracking-tight text-text">TeachMate</span>
       </div>
       
-      <nav className="flex-1 space-y-2">
+      <nav className="flex-1 space-y-1.5 font-bold">
         {navItems.map((item) => (
           <NavLink
             key={item.path}
             to={item.path}
             className={({ isActive }: { isActive: boolean }) => 
-              cn(isActive ? "nav-item-active" : "nav-item")
+              cn(
+                "flex items-center gap-3 px-4 py-3 rounded-2xl transition-all duration-300 group",
+                isActive 
+                  ? "bg-blue-50 text-primary shadow-sm" 
+                  : "text-text-muted hover:bg-gray-50 hover:text-text"
+              )
             }
           >
-            <item.icon size={20} />
+            <item.icon size={20} className="transition-transform group-hover:scale-110" />
             <span>{item.name}</span>
           </NavLink>
         ))}
@@ -144,8 +149,8 @@ const MobileNav = () => {
                     : 'TeachMate';
   
     return (
-      <header className="sticky top-0 bg-background/80 backdrop-blur-md z-10 px-4 py-5 lg:px-10 border-b border-gray-100 lg:border-none flex items-center justify-between overflow-x-hidden">
-        <h1 className="text-xl lg:text-2xl font-bold text-text">{pageTitle}</h1>
+      <header className="fixed top-0 left-0 lg:left-64 right-0 h-16 bg-white/80 backdrop-blur-md z-30 px-6 py-4 border-b border-gray-100 flex items-center justify-between shadow-sm">
+        <h1 className="text-xl font-black text-text italic tracking-tighter leading-tight">{pageTitle}</h1>
         <div className="flex items-center gap-6">
           <NavLink to="/app/notifications" className="relative p-2 hover:bg-gray-100 rounded-xl transition-colors text-text-muted hover:text-primary">
              <Bell size={24} />
@@ -168,14 +173,16 @@ const MobileNav = () => {
   
   const Layout = () => {
     return (
-      <div className="flex min-h-screen bg-background text-text selection:bg-primary/10">
+      <div className="flex h-screen overflow-hidden bg-background text-text selection:bg-primary/10">
         <Sidebar />
-        <main className="flex-1 pb-24 lg:pb-0 scroll-smooth overflow-x-hidden">
+        <div className="flex-1 lg:ml-64 flex flex-col min-h-screen">
           <Header />
-          <div className="p-4 lg:p-10 max-w-screen-xl mx-auto overflow-x-hidden">
-            <Outlet />
-          </div>
-        </main>
+          <main className="flex-1 mt-16 p-6 overflow-y-auto custom-scrollbar pb-24 lg:pb-8">
+            <div className="max-w-7xl mx-auto">
+              <Outlet />
+            </div>
+          </main>
+        </div>
         <MobileNav />
         <Toaster position="top-right" reverseOrder={false} />
       </div>

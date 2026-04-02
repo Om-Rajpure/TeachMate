@@ -171,7 +171,7 @@ const Analytics = () => {
   }
 
   return (
-    <div className="space-y-12 pb-20 max-w-[1600px] mx-auto px-4 md:px-0">
+    <div className="space-y-12 pb-20">
       {/* HEADER SECTION (Desktop) */}
       <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-8">
         <div className="space-y-2">
@@ -182,7 +182,7 @@ const Analytics = () => {
           <p className="text-text-muted font-semibold max-w-xl text-lg">Monitor attendance velocity, identify at-risk trends, and optimize student engagement.</p>
         </div>
 
-        <div className="flex items-center gap-4 bg-white p-2 rounded-[2rem] border border-gray-100 shadow-xl shadow-gray-200/20">
+        <div className="flex items-center gap-4 bg-white p-2 rounded-2xl border border-gray-100 shadow-xl shadow-gray-200/20">
            <div className="flex items-center gap-2 px-4 py-2 bg-gray-50 rounded-[1.5rem] text-text-muted font-bold text-xs uppercase tracking-widest border border-gray-100">
              <Filter size={14} /> Filter
            </div>
@@ -213,7 +213,7 @@ const Analytics = () => {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: i * 0.1 }}
-              className={`flex-1 bg-white p-8 rounded-[3rem] border shadow-xl shadow-gray-200/20 group hover:-translate-y-2 transition-all ${stat.color}`}
+              className={`flex-1 bg-white p-8 rounded-3xl border shadow-xl group hover:-translate-y-2 transition-all duration-300 ${stat.color}`}
             >
               <div className="flex items-start justify-between mb-8">
                 <div className="w-14 h-14 rounded-2xl bg-white border border-inherit flex items-center justify-center shadow-sm group-hover:scale-110 transition-transform">
@@ -239,7 +239,7 @@ const Analytics = () => {
       {/* CHARTS GRID */}
       <section className="grid grid-cols-1 lg:grid-cols-5 gap-10">
         {/* Subject-wise Bar Chart */}
-        <div className="lg:col-span-3 bg-white p-10 rounded-[4rem] border border-gray-100 shadow-xl shadow-gray-200/10 space-y-10">
+        <div className="lg:col-span-3 bg-white p-10 rounded-3xl border border-gray-100 shadow-xl space-y-10">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
             <div>
               <h3 className="text-2xl font-black italic tracking-tight">Subject Performance</h3>
@@ -287,7 +287,7 @@ const Analytics = () => {
         </div>
 
         {/* Trend Line Chart */}
-        <div className="lg:col-span-2 bg-[#111827] p-10 rounded-[4rem] text-white space-y-10 shadow-2xl shadow-gray-900/40 border border-gray-800">
+        <div className="lg:col-span-2 bg-slate-900 p-10 rounded-3xl text-white space-y-10 shadow-2xl border border-gray-800">
           <div>
             <h3 className="text-2xl font-black italic tracking-tight">Daily Trend.</h3>
             <p className="text-xs font-bold text-gray-400">Chronological attendance flow for {subjects.find(s => s.id === Number(selectedSub))?.name || 'Selected Subject'}</p>
@@ -325,7 +325,7 @@ const Analytics = () => {
       {/* DETAILED DATA SECTION */}
       <section className="grid grid-cols-1 lg:grid-cols-7 gap-10">
         {/* Student Performance Table */}
-        <div className="lg:col-span-5 bg-white rounded-[4rem] border border-gray-100 shadow-xl shadow-gray-200/10 overflow-hidden">
+        <div className="lg:col-span-5 bg-white rounded-3xl border border-gray-100 shadow-xl overflow-hidden">
            <div className="p-10 border-b border-gray-50 flex flex-col md:flex-row md:items-center justify-between gap-8">
               <div>
                 <h3 className="text-2xl font-black italic tracking-tight">Student Leaderboard</h3>
@@ -333,13 +333,13 @@ const Analytics = () => {
               </div>
               <div className="relative group">
                 <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-300 group-focus-within:text-primary transition-colors" size={18} />
-                <input 
-                  type="text" 
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Search by name or roll..." 
-                  className="pl-14 pr-8 py-4 bg-gray-50 rounded-[2rem] text-sm font-bold border-none outline-none focus:ring-4 ring-primary/5 w-full md:w-[320px] transition-all"
-                />
+                  <input 
+                    type="text" 
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Search by name or roll..." 
+                    className="pl-14 pr-8 py-4 bg-gray-50 rounded-2xl text-sm font-bold border-none outline-none focus:ring-2 ring-primary/20 w-full md:w-[320px] transition-all"
+                  />
               </div>
            </div>
 
@@ -398,7 +398,7 @@ const Analytics = () => {
            
            {filteredStudents.length === 0 && (
              <div className="p-32 text-center space-y-6">
-                <div className="inline-flex w-24 h-24 bg-gray-50 rounded-[2.5rem] items-center justify-center text-gray-200 border border-gray-100 shadow-inner">
+                <div className="inline-flex w-24 h-24 bg-gray-50 rounded-2xl items-center justify-center text-gray-200 border border-gray-100 shadow-inner">
                    <Users size={48} strokeWidth={1} />
                 </div>
                 <div>
@@ -411,7 +411,7 @@ const Analytics = () => {
 
         {/* Low Attendance Alert Sidebar */}
         <div className="lg:col-span-2 space-y-10">
-           <div className="bg-rose-50 p-10 rounded-[4rem] border border-rose-100 space-y-10 ring-4 ring-rose-50/50">
+           <div className="bg-rose-50 p-10 rounded-3xl border border-rose-100 space-y-10 shadow-lg">
               <div className="flex items-center justify-between">
                 <h3 className="text-2xl font-black text-rose-900 italic tracking-tighter flex items-center gap-4">
                   <AlertTriangle className="text-rose-500" size={32} strokeWidth={3} />
@@ -424,13 +424,13 @@ const Analytics = () => {
               
               <div className="space-y-4 max-h-[600px] overflow-y-auto pr-2 custom-scrollbar">
                  {lowAttendance.map((s, i) => (
-                   <motion.div 
-                     initial={{ opacity: 0, x: 20 }}
-                     animate={{ opacity: 1, x: 0 }}
-                     transition={{ delay: i * 0.05 }}
-                     key={i} 
-                     className="bg-white p-6 rounded-[2.5rem] border border-rose-100 shadow-sm flex items-center justify-between group hover:shadow-xl hover:shadow-rose-500/5 transition-all"
-                   >
+                    <motion.div 
+                      initial={{ opacity: 0, x: 20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: i * 0.05 }}
+                      key={i} 
+                      className="bg-white p-6 rounded-2xl border border-rose-100 shadow-sm flex items-center justify-between group hover:shadow-md transition-all"
+                    >
                      <div className="flex items-center gap-5">
                         <div className="w-12 h-12 rounded-2xl bg-rose-50 text-rose-500 flex items-center justify-center font-black text-sm border border-rose-100">
                            {s.roll_number}
@@ -445,14 +445,14 @@ const Analytics = () => {
                  ))}
 
                  {lowAttendance.length === 0 && (
-                   <div className="text-center py-20 bg-emerald-50 rounded-[3rem] border border-emerald-100">
+                   <div className="text-center py-20 bg-emerald-50 rounded-3xl border border-emerald-100">
                       <p className="text-emerald-800 font-black italic text-xl">Perfect Attendance!</p>
                       <p className="text-xs font-bold text-emerald-600/60 uppercase tracking-widest">No alerts detected</p>
                    </div>
                  )}
               </div>
               
-              <button className="w-full py-6 bg-white rounded-[2rem] text-rose-600 font-black text-xs uppercase tracking-[0.2em] shadow-xl shadow-rose-900/10 hover:bg-rose-600 hover:text-white transition-all border border-rose-100">
+              <button className="w-full py-6 bg-white rounded-2xl text-rose-600 font-black text-xs uppercase tracking-[0.2em] shadow-lg hover:bg-rose-600 hover:text-white transition-all border border-rose-100 active:scale-95">
                 Generate Warning Letters
               </button>
            </div>
@@ -460,12 +460,12 @@ const Analytics = () => {
            {/* AI Insight Card */}
            <motion.div 
              whileHover={{ scale: 1.02 }}
-             className="bg-gradient-to-br from-indigo-600 to-primary p-10 rounded-[4rem] text-white space-y-6 shadow-2xl shadow-primary/30 relative overflow-hidden group"
+             className="bg-gradient-to-br from-blue-600 to-purple-600 p-10 rounded-3xl text-white space-y-6 shadow-2xl relative overflow-hidden group"
            >
               <div className="absolute top-0 right-0 p-10 opacity-10 group-hover:scale-150 transition-transform duration-1000">
                  <TrendingUp size={120} />
               </div>
-              <div className="w-16 h-16 bg-white/20 backdrop-blur-md rounded-[1.5rem] flex items-center justify-center relative z-10 border border-white/20">
+              <div className="w-16 h-16 bg-white/20 backdrop-blur-md rounded-2xl flex items-center justify-center relative z-10 border border-white/20">
                  <Sparkles size={32} />
               </div>
               <div className="relative z-10 space-y-2">

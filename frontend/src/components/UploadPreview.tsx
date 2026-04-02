@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { 
   X, Trash2, 
-  Plus, Edit2, Save, 
   CheckCircle2, Loader2, AlertTriangle,
   Clock, MapPin, Users
 } from 'lucide-react';
@@ -22,7 +21,6 @@ const UploadPreview: React.FC<UploadPreviewProps> = ({ type, file, subjectId, su
   const [isParsing, setIsParsing] = useState(true);
   const [data, setData] = useState<any[]>([]);
   const [practicalMetadata, setPracticalMetadata] = useState<any>(null);
-  const [editingId, setEditingId] = useState<string | number | null>(null);
 
   useEffect(() => {
     const parseFile = async () => {
@@ -66,9 +64,9 @@ const UploadPreview: React.FC<UploadPreviewProps> = ({ type, file, subjectId, su
     const conflicts: Record<string, boolean> = {};
     if (type !== 'timetable') return conflicts;
 
-    data.forEach((item, index) => {
-      const isDuplicate = data.some((other, idx) => 
-        idx !== index && 
+    data.forEach((item) => {
+      const isDuplicate = data.some((other) => 
+        other.id !== item.id && 
         other.day === item.day && 
         other.start_time === item.start_time &&
         other.room === item.room &&
@@ -83,17 +81,8 @@ const UploadPreview: React.FC<UploadPreviewProps> = ({ type, file, subjectId, su
     setData(data.filter(item => item.id !== id));
   };
 
-  const handleEdit = (id: string | number) => {
-    setEditingId(id);
-  };
 
-  const handleSaveEdit = () => {
-    setEditingId(null);
-  };
 
-  const handleValueChange = (id: string | number, field: string, value: any) => {
-    setData(data.map(item => item.id === id ? { ...item, [field]: value } : item));
-  };
 
   const handleCommit = async () => {
     if (data.length === 0) return;
@@ -202,51 +191,22 @@ const UploadPreview: React.FC<UploadPreviewProps> = ({ type, file, subjectId, su
                   {type === 'timetable' ? (
                     <>
                       <td className="px-5 py-4">
-                        {editingId === item.id ? (
-                          <div className="space-y-2">
-                            <select 
-                              className="w-full p-2 bg-white border border-gray-200 rounded-lg text-xs font-bold"
-                              value={item.day}
-                              onChange={(e) => handleValueChange(item.id, 'day', e.target.value)}
-                            >
-                              {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'].map(d => (
-                                <option key={d} value={d}>{d}</option>
-                              ))}
-                            </select>
-                            <input 
-                              type="text" 
-                              className="w-full p-2 bg-white border border-gray-200 rounded-lg text-xs" 
-                              value={`${item.start_time} - ${item.end_time}`} 
-                              disabled
-                            />
+                        <div className="space-y-1">
+                          <div className="text-xs font-black text-text uppercase">{item.day}</div>
+                          <div className="text-[11px] font-bold text-text-muted flex items-center gap-1">
+                            <Clock size={10} /> {item.start_time} - {item.end_time}
                           </div>
-                        ) : (
-                          <div className="space-y-1">
-                            <div className="text-xs font-black text-text uppercase">{item.day}</div>
-                            <div className="text-[11px] font-bold text-text-muted flex items-center gap-1">
-                              <Clock size={10} /> {item.start_time} - {item.end_time}
-                            </div>
-                          </div>
-                        )}
+                        </div>
                       </td>
                       <td className="px-5 py-4">
-                        {editingId === item.id ? (
-                          <input 
-                            type="text" 
-                            className="w-full p-2 bg-white border border-gray-200 rounded-lg text-sm font-bold" 
-                            value={item.subject_code} 
-                            onChange={(e) => handleValueChange(item.id, 'subject_code', e.target.value)}
-                          />
-                        ) : (
-                          <div className="flex flex-col">
-                            <span className="font-bold text-text text-sm">{item.subject_code}</span>
-                            {warnings[item.id] && (
-                              <span className="flex items-center gap-1 text-[9px] text-amber-600 font-black uppercase">
-                                <AlertTriangle size={10} /> Conflict
-                              </span>
-                            )}
-                          </div>
-                        )}
+                        <div className="flex flex-col">
+                          <span className="font-bold text-text text-sm">{item.subject_code}</span>
+                          {warnings[item.id] && (
+                            <span className="flex items-center gap-1 text-[9px] text-amber-600 font-black uppercase">
+                              <AlertTriangle size={10} /> Conflict
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td className="px-5 py-4">
                         <span className={`px-2 py-0.5 rounded-md text-[10px] font-black ${

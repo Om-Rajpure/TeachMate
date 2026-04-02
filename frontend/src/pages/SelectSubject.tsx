@@ -59,7 +59,7 @@ const SelectSubject = () => {
             placeholder="Search subjects..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-12 pr-4 py-3 bg-white border border-gray-100 rounded-2xl focus:ring-2 focus:ring-primary/20 outline-none font-bold text-sm shadow-sm"
+            className="w-full pl-12 pr-4 py-3 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 font-bold text-sm shadow-sm"
           />
         </div>
       </div>
@@ -72,7 +72,7 @@ const SelectSubject = () => {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: index * 0.05 }}
             onClick={() => navigate(`/app/students/manage?subject_id=${subject.id}`)}
-            className="group relative bg-white p-6 rounded-[2rem] border border-gray-100 hover:border-primary/30 hover:shadow-xl hover:shadow-primary/5 transition-all text-left overflow-hidden"
+            className="group relative bg-white p-6 rounded-3xl border border-gray-100 hover:border-primary/30 hover:shadow-xl hover:shadow-primary/5 transition-all text-left overflow-hidden"
           >
             <div className={`absolute top-0 right-0 w-32 h-32 -mr-8 -mt-8 rounded-full opacity-[0.03] group-hover:opacity-[0.08] transition-opacity ${
               (subject as any).subject_type === 'practical' ? 'bg-purple-600' : 'bg-blue-600'
@@ -101,7 +101,7 @@ const SelectSubject = () => {
       </div>
 
       {filteredSubjects.length === 0 && !loading && (
-        <div className="text-center py-20 bg-gray-50 rounded-[3rem] border-2 border-dashed border-gray-200">
+        <div className="text-center py-20 bg-gray-50 rounded-3xl border-2 border-dashed border-gray-200">
           <p className="text-text-muted font-medium">No subjects found matching your search.</p>
         </div>
       )}

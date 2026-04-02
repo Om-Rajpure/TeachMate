@@ -62,12 +62,12 @@ const LoginPage = () => {
       </motion.div>
 
       {/* Login Form */}
-      <div className="flex-1 flex items-center justify-center px-6 pb-16">
+      <div className="flex-1 flex items-center justify-center p-6">
         <motion.div
           initial={{ opacity: 0, y: 20, scale: 0.98 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
           transition={{ duration: 0.5, ease: [0.25, 0.46, 0.45, 0.94] }}
-          className="login-card"
+          className="w-full max-w-md bg-white p-8 rounded-3xl shadow-2xl border border-gray-100"
         >
           {/* Logo */}
           <div className="flex flex-col items-center mb-8">
@@ -92,9 +92,9 @@ const LoginPage = () => {
             </motion.div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-5" noValidate>
+          <form onSubmit={handleSubmit} className="space-y-4" noValidate>
             {/* Username / Email Field */}
-            <div>
+            <div className="mb-4">
               <label htmlFor="login-username" className="block text-sm font-semibold text-text mb-2">
                 Email or Username
               </label>
@@ -103,7 +103,7 @@ const LoginPage = () => {
                 type="text"
                 value={username}
                 onChange={(e) => { setUsername(e.target.value); setError(''); }}
-                className="input-field"
+                className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white shadow-sm"
                 placeholder="Enter your email or username"
                 autoComplete="username"
                 autoFocus
@@ -112,7 +112,7 @@ const LoginPage = () => {
             </div>
 
             {/* Password Field */}
-            <div>
+            <div className="mb-6">
               <label htmlFor="login-password" className="block text-sm font-semibold text-text mb-2">
                 Password
               </label>
@@ -122,7 +122,7 @@ const LoginPage = () => {
                   type={showPassword ? 'text' : 'password'}
                   value={password}
                   onChange={(e) => { setPassword(e.target.value); setError(''); }}
-                  className="input-field pr-12"
+                  className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white shadow-sm pr-12"
                   placeholder="Enter your password"
                   autoComplete="current-password"
                   disabled={isLoading}
@@ -164,9 +164,8 @@ const LoginPage = () => {
               id="login-submit"
               type="submit"
               disabled={isLoading}
-              className="w-full flex items-center justify-center gap-2 px-6 py-4 bg-primary text-white font-semibold text-base rounded-xl
-                         transition-all duration-200 hover:bg-primary-dark hover:shadow-glow
-                         active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:shadow-none disabled:hover:bg-primary disabled:active:scale-100"
+              className="w-full flex items-center justify-center gap-2 px-6 py-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-black text-base rounded-2xl
+                         transition-all duration-300 hover:scale-105 hover:shadow-xl active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:scale-100"
             >
               {isLoading ? (
                 <>

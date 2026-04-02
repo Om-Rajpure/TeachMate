@@ -11,8 +11,6 @@ import {
   Edit2,
   Trash2,
   X,
-  Plus,
-  RefreshCcw,
   Upload,
   ArrowRight
 } from 'lucide-react';
@@ -281,10 +279,10 @@ const Syllabus = () => {
         </div>
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-1 p-1 bg-gray-50 rounded-2xl border">
-            <button onClick={() => setActiveTab('theory')} className={`px-4 py-2 rounded-xl text-[10px] uppercase font-black transition-all ${activeTab === 'theory' ? 'bg-primary text-white' : 'text-text-muted'}`}>Theory</button>
-            <button onClick={() => setActiveTab('practical')} className={`px-4 py-2 rounded-xl text-[10px] uppercase font-black transition-all ${activeTab === 'practical' ? 'bg-purple-600 text-white' : 'text-text-muted'}`}>Practical</button>
+            <button onClick={() => setActiveTab('theory')} className={`px-4 py-2 rounded-xl text-[10px] uppercase font-black transition-all ${activeTab === 'theory' ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg' : 'text-text-muted'}`}>Theory</button>
+            <button onClick={() => setActiveTab('practical')} className={`px-4 py-2 rounded-xl text-[10px] uppercase font-black transition-all ${activeTab === 'practical' ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg' : 'text-text-muted'}`}>Practical</button>
           </div>
-          <button onClick={() => { setShowUploadModal(true); setUploadStep(0); }} className="px-6 py-3 bg-white border rounded-2xl text-primary font-bold shadow-sm hover:bg-gray-50 flex items-center gap-2"><Upload size={18}/><span>Upload</span></button>
+          <button onClick={() => { setShowUploadModal(true); setUploadStep(0); }} className="px-6 py-3 bg-white border border-gray-100 rounded-2xl text-primary font-bold shadow-lg hover:bg-gray-50 flex items-center gap-2 active:scale-95 transition-all"><Upload size={18}/><span>Upload</span></button>
         </div>
       </div>
 
@@ -306,15 +304,15 @@ const Syllabus = () => {
         </div>
 
         <section className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="bg-white p-6 rounded-2xl border shadow-sm">
+          <div className="bg-white p-6 rounded-2xl border shadow-lg">
              <p className="text-sm font-bold text-text-muted mb-1">Progress</p>
              <h3 className="text-4xl font-black">{stats.avg}%</h3>
              <div className="mt-4 h-2 w-full bg-gray-100 rounded-full overflow-hidden">
-                <motion.div initial={{ width: 0 }} animate={{ width: `${stats.avg}%` }} className={`h-full ${activeTab === 'theory' ? 'bg-primary' : 'bg-purple-600'}`} />
+                <motion.div initial={{ width: 0 }} animate={{ width: `${stats.avg}%` }} className={`h-full bg-gradient-to-r from-blue-500 to-purple-500`} />
              </div>
           </div>
-          <div className="bg-white p-6 rounded-2xl border shadow-sm flex items-center gap-4">
-             <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${activeTab === 'theory' ? 'bg-orange-50 text-orange-600' : 'bg-purple-50 text-purple-600'}`}>{activeTab === 'theory' ? <Layers size={24}/> : <FlaskConical size={24}/>}</div>
+          <div className="bg-white p-6 rounded-2xl border shadow-lg flex items-center gap-4">
+             <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${activeTab === 'theory' ? 'bg-blue-50 text-blue-600' : 'bg-purple-50 text-purple-600'}`}>{activeTab === 'theory' ? <Layers size={24}/> : <FlaskConical size={24}/>}</div>
              <div><h3 className="text-2xl font-bold">{activeTab === 'theory' ? chapters.length : experiments.length} Items</h3></div>
           </div>
           <div className={`${activeTab === 'theory' ? 'bg-primary/5 border-primary/10 text-primary' : 'bg-purple-50 border-purple-100 text-purple-600'} p-6 rounded-2xl border flex items-start gap-4`}>
@@ -324,8 +322,8 @@ const Syllabus = () => {
         </section>
 
         {!groupedData.length && !experiments.length ? (
-           <div className="py-32 text-center bg-white rounded-[4rem] border-2 border-dashed flex flex-col items-center">
-              <button onClick={() => { setShowUploadModal(true); setUploadStep(0); }} className="px-10 py-5 bg-primary text-white font-bold rounded-2xl">Upload Syllabus</button>
+           <div className="py-32 text-center bg-white rounded-3xl border-2 border-dashed flex flex-col items-center shadow-lg">
+              <button onClick={() => { setShowUploadModal(true); setUploadStep(0); }} className="px-10 py-5 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-bold rounded-2xl shadow-xl hover:scale-105 transition-all duration-300 active:scale-95">Upload Syllabus</button>
            </div>
         ) : activeTab === 'theory' ? (
            <div className="space-y-10">
@@ -336,10 +334,10 @@ const Syllabus = () => {
                        <h3 className="font-black text-xl">{group.chapter.name}</h3>
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                       {group.plans.map(p => (
-                          <div key={p.id} className="bg-white p-4 rounded-2xl border flex items-center justify-between group hover:border-primary/20">
-                             <span className="font-bold text-sm">L{p.lecture_number}: {p.topic_name}</span>
-                             {p.status === 'Completed' ? <CheckCircle2 size={14} className="text-emerald-500"/> : <Clock size={14} className="text-gray-300"/>}
+                        {group.plans.map(p => (
+                          <div key={p.id} className="bg-white p-4 rounded-2xl border border-gray-100 flex items-center justify-between group hover:border-primary/20 hover:shadow-md transition-all">
+                             <span className="font-bold text-sm text-text">L{p.lecture_number}: {p.topic_name}</span>
+                             {p.status === 'Completed' ? <CheckCircle2 size={16} className="text-emerald-500"/> : <Clock size={16} className="text-gray-300"/>}
                           </div>
                        ))}
                     </div>
@@ -348,15 +346,15 @@ const Syllabus = () => {
            </div>
         ) : (
            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {experiments.map(e => (
-                 <div key={e.id} className="bg-white p-6 rounded-[2rem] border flex items-center justify-between shadow-sm">
-                    <div className="flex items-center gap-4">
-                       <div className="w-12 h-12 bg-purple-50 text-purple-600 rounded-xl flex items-center justify-center font-black">{e.experiment_number}</div>
-                       <h4 className="font-black">{e.title}</h4>
-                    </div>
-                    {e.status === 'Completed' ? <CheckCircle2 size={24} className="text-emerald-500"/> : <Clock size={24} className="text-gray-100"/>}
-                 </div>
-              ))}
+               {experiments.map(e => (
+                  <div key={e.id} className="bg-white p-6 rounded-2xl border border-gray-100 flex items-center justify-between shadow-lg hover:shadow-xl transition-shadow">
+                     <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 bg-purple-50 text-purple-600 rounded-xl flex items-center justify-center font-black shadow-inner">{e.experiment_number}</div>
+                        <h4 className="font-bold text-text">{e.title}</h4>
+                     </div>
+                     {e.status === 'Completed' ? <CheckCircle2 size={24} className="text-emerald-500"/> : <Clock size={24} className="text-gray-100"/>}
+                  </div>
+               ))}
            </div>
         )}
       </div>
@@ -365,12 +363,18 @@ const Syllabus = () => {
          {showSubjectEditModal && (
             <div className="fixed inset-0 z-[110] flex items-center justify-center p-6">
                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowSubjectEditModal(null)} className="absolute inset-0 bg-text/40 backdrop-blur-sm" />
-               <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="relative bg-white p-8 rounded-[3rem] w-full max-w-sm">
+               <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="relative bg-white p-8 rounded-3xl w-full max-w-sm shadow-2xl">
                   <h3 className="text-xl font-black mb-6">Edit Subject</h3>
                   <div className="space-y-4">
-                     <input type="text" value={showSubjectEditModal.name} onChange={e => setShowSubjectEditModal({...showSubjectEditModal, name: e.target.value})} className="w-full p-4 rounded-2xl border" placeholder="Name" />
-                     <input type="text" value={showSubjectEditModal.code} onChange={e => setShowSubjectEditModal({...showSubjectEditModal, code: e.target.value})} className="w-full p-4 rounded-2xl border" placeholder="Code" />
-                     <button onClick={() => handleUpdateSubject({ name: showSubjectEditModal.name, code: showSubjectEditModal.code })} className="w-full py-4 bg-primary text-white rounded-2xl font-black">Save</button>
+                     <input type="text" value={showSubjectEditModal.name} onChange={e => setShowSubjectEditModal({...showSubjectEditModal, name: e.target.value})} className="w-full p-4 rounded-2xl border outline-none focus:border-primary/50 transition-colors" placeholder="Name" />
+                     <input type="text" value={showSubjectEditModal.code} onChange={e => setShowSubjectEditModal({...showSubjectEditModal, code: e.target.value})} className="w-full p-4 rounded-2xl border outline-none focus:border-primary/50 transition-colors" placeholder="Code" />
+                     <button 
+                        disabled={isSubmitting}
+                        onClick={() => handleUpdateSubject({ name: showSubjectEditModal.name, code: showSubjectEditModal.code })} 
+                        className="w-full py-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-2xl font-black shadow-lg hover:scale-105 transition-all duration-300 active:scale-95 disabled:opacity-50"
+                     >
+                        {isSubmitting ? 'Saving...' : 'Save Changes'}
+                     </button>
                   </div>
                </motion.div>
             </div>
@@ -381,7 +385,7 @@ const Syllabus = () => {
          {showUploadModal && (
             <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowUploadModal(false)} className="absolute inset-0 bg-text/50 backdrop-blur-md" />
-               <motion.div className="relative bg-white rounded-[3rem] w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+               <motion.div className="relative bg-white rounded-3xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col shadow-2xl">
                   <div className="p-8 border-b flex justify-between items-center"><h2 className="text-2xl font-black">Sync Curriculum</h2><button onClick={() => setShowUploadModal(false)} className="p-3 bg-gray-50 rounded-2xl"><X size={24}/></button></div>
                   <div className="flex-1 overflow-y-auto p-10">
                      {uploadStep === 0 && (
@@ -402,7 +406,13 @@ const Syllabus = () => {
                               <div className="p-6 bg-gray-50 rounded-[2rem] space-y-4">
                                  <input type="text" value={newSubjectName} onChange={e => setNewSubjectName(e.target.value)} className="w-full p-4 rounded-xl" placeholder="Name" />
                                  <input type="text" value={newSubjectCode} onChange={e => setNewSubjectCode(e.target.value)} className="w-full p-4 rounded-xl" placeholder="Code" />
-                                 <button onClick={handleCreateSubject} className="w-full py-4 bg-primary text-white rounded-xl font-black">Create</button>
+                                 <button 
+                                    disabled={isSubmitting}
+                                    onClick={handleCreateSubject} 
+                                    className="w-full py-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl font-black shadow-lg hover:scale-105 transition-all duration-300 active:scale-95 disabled:opacity-50"
+                                 >
+                                    {isSubmitting ? 'Creating...' : 'Create Subject'}
+                                 </button>
                               </div>
                            )}
                         </div>
@@ -412,7 +422,7 @@ const Syllabus = () => {
                            {!uploadFile ? (
                               <label className="flex flex-col items-center justify-center h-64 border-4 border-dashed rounded-[3rem] cursor-pointer hover:bg-gray-50"><Upload size={48} className="text-primary mb-4"/><p className="font-black">Browse Excel</p><input type="file" className="hidden" accept=".xlsx" onChange={e => setUploadFile(e.target.files?.[0] || null)}/></label>
                            ) : (
-                              <UploadPreview file={uploadFile} subjectId={uploadSubjectId!} type="syllabus" onCancel={() => setUploadFile(null)} onSave={onSaveUpload} />
+                               <UploadPreview file={uploadFile} subjectId={uploadSubjectId!} type="syllabus" onClose={() => setUploadFile(null)} onSave={onSaveUpload} />
                            )}
                         </div>
                      )}
@@ -427,8 +437,17 @@ const Syllabus = () => {
             <div className="fixed inset-0 z-[120] bg-white flex flex-col">
                <div className="p-10 border-b flex justify-between items-center"><h2 className="text-3xl font-black text-text">Manage {activeTab === 'theory' ? 'Syllabus' : 'Experiments'}</h2><button onClick={() => setShowManagePanel(false)} className="p-4 bg-gray-100 rounded-2xl"><X size={24}/></button></div>
                <div className="flex-1 overflow-y-auto p-10">
-                  <div className="max-w-4xl mx-auto space-y-10">
-                    <div className="p-8 bg-gray-50 border-2 border-dashed rounded-[3rem] flex gap-4"><input value={newItemName} onChange={e => setNewItemName(e.target.value)} className="flex-1 p-4 rounded-2xl border" placeholder="Topic..." /> <button onClick={handleAddItem} className="px-6 bg-primary text-white rounded-2xl font-black">Add</button></div>
+                   <div className="max-w-4xl mx-auto space-y-10">
+                    <div className="p-8 bg-gray-50 border-2 border-dashed rounded-3xl flex gap-4">
+                       <input value={newItemName} onChange={e => setNewItemName(e.target.value)} className="flex-1 p-4 rounded-2xl border outline-none focus:border-primary/50" placeholder="Topic..." /> 
+                       <button 
+                          disabled={isSubmitting}
+                          onClick={handleAddItem} 
+                          className="px-8 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-2xl font-black shadow-lg hover:scale-105 transition-all duration-300 active:scale-95 disabled:opacity-50"
+                       >
+                          {isSubmitting ? 'Adding...' : 'Add Item'}
+                       </button>
+                    </div>
                     <div className="grid gap-3">
                        {((activeTab === 'theory' ? lecturePlans : experiments) as any[]).map(item => (
                           <div key={item.id} className="p-5 bg-white border rounded-3xl flex justify-between items-center"><span className="font-bold">{activeTab === 'theory' ? item.topic_name : item.title}</span><button onClick={() => handleDeleteItem(item.id, activeTab === 'theory' ? 'lecture' : 'experiment')} className="p-2 text-rose-500 hover:bg-rose-50 rounded-xl"><Trash2 size={20}/></button></div>

@@ -3,7 +3,7 @@ import {
   Users, GraduationCap, CheckCircle2,
   Loader2, AlertTriangle, Save, 
   Upload, Download, BarChart3, PieChart, TrendingUp,
-  FileSpreadsheet, Trophy
+  FileSpreadsheet, Trophy, X
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
@@ -234,16 +234,16 @@ const Marks = () => {
           <p className="text-text-muted font-medium">Record theory and practical scores with granular tracking.</p>
         </div>
 
-        <div className="flex bg-white p-1 rounded-2xl border border-gray-100 shadow-sm self-start">
+        <div className="flex bg-gray-50 p-1 rounded-2xl border border-gray-100 shadow-inner self-start">
           <button 
             onClick={() => setTab('enter')}
-            className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${tab === 'enter' ? 'bg-primary text-white shadow-lg' : 'text-text-muted hover:text-text'}`}
+            className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${tab === 'enter' ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg' : 'text-text-muted hover:text-text'}`}
           >
             <Save size={14} /> Entry Mode
           </button>
           <button 
             onClick={() => setTab('analytics')}
-            className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${tab === 'analytics' ? 'bg-primary text-white shadow-lg' : 'text-text-muted hover:text-text'}`}
+            className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${tab === 'analytics' ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg' : 'text-text-muted hover:text-text'}`}
           >
             <BarChart3 size={14} /> Analytics
           </button>
@@ -251,8 +251,8 @@ const Marks = () => {
       </div>
 
       {/* Filters Bar */}
-      <div className="bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-sm grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-6 relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-24 h-full bg-primary/5 rounded-l-[3rem]" />
+      <div className="bg-white p-8 rounded-3xl border border-gray-100 shadow-lg grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-6 relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-24 h-full bg-primary/5 rounded-l-3xl" />
         
         <div className="space-y-2 col-span-2">
           <label className="text-[10px] font-black text-text-muted uppercase tracking-widest ml-1">Subject</label>
@@ -321,7 +321,7 @@ const Marks = () => {
             </div>
 
             {/* Entry Table */}
-            <div className="bg-white rounded-[2.5rem] border border-gray-100 shadow-xl overflow-hidden relative">
+            <div className="bg-white rounded-3xl border border-gray-100 shadow-xl overflow-hidden relative">
               <div className="overflow-x-auto">
                 <table className="w-full border-collapse">
                   <thead>
@@ -519,7 +519,7 @@ const Marks = () => {
               <motion.div 
                 initial={{ y: 100 }}
                 animate={{ y: 0 }}
-                className="bg-text/95 backdrop-blur-xl border border-white/10 p-6 rounded-[2.5rem] shadow-2xl flex items-center justify-between gap-10"
+                className="bg-slate-900/95 backdrop-blur-xl border border-white/10 p-6 rounded-3xl shadow-2xl flex items-center justify-between gap-10"
               >
                 <div className="flex items-center gap-6 px-4">
                   <div className="w-12 h-12 bg-primary/10 rounded-2xl flex items-center justify-center text-primary">
@@ -533,9 +533,9 @@ const Marks = () => {
                 <button 
                   onClick={handleSave}
                   disabled={isSubmitting || !selection.subject_id}
-                  className="px-10 py-4 bg-primary text-white rounded-[1.5rem] font-bold shadow-xl shadow-primary/30 flex items-center gap-2 hover:bg-primary-dark transition-all disabled:opacity-50"
+                  className="px-10 py-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-2xl font-bold shadow-xl hover:scale-105 transition-all duration-300 active:scale-95 disabled:opacity-50 flex items-center gap-2"
                 >
-                  {isSubmitting ? <Loader2 className="animate-spin" /> : <Save size={18} />}
+                  {isSubmitting ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
                   Synchronize All Records
                 </button>
               </motion.div>
@@ -550,7 +550,7 @@ const Marks = () => {
             className="space-y-8"
           >
             {!analytics ? (
-              <div className="flex flex-col items-center justify-center py-24 space-y-4 bg-white rounded-[3rem] border border-dashed border-gray-200">
+              <div className="flex flex-col items-center justify-center py-24 space-y-4 bg-white rounded-3xl border border-dashed border-gray-200 shadow-lg">
                 <BarChart3 size={48} className="text-gray-200" />
                 <p className="text-text-muted font-bold">Select a subject & division to view detailed analytics.</p>
               </div>
@@ -558,14 +558,14 @@ const Marks = () => {
               <>
                 {/* Stats Cards */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                  {[
+                   {[
                     { label: 'Class Average', value: `${analytics.class_average}%`, icon: PieChart, color: 'bg-blue-50 text-blue-600' },
                     { label: 'Passed Students', value: analytics.passed_count, icon: CheckCircle2, color: 'bg-emerald-50 text-emerald-600' },
                     { label: 'At Risk Students', value: analytics.failed_count, icon: AlertTriangle, color: 'bg-rose-50 text-rose-600' },
                     { label: 'Total Students', value: analytics.total_students, icon: Users, color: 'bg-purple-50 text-purple-600' },
                   ].map((stat, i) => (
-                    <div key={i} className="bg-white p-6 rounded-[2rem] border border-gray-100 shadow-sm flex items-center gap-6">
-                      <div className={`w-14 h-14 rounded-2xl ${stat.color} flex items-center justify-center`}>
+                    <div key={i} className="bg-white p-6 rounded-2xl border border-gray-100 shadow-lg flex items-center gap-6">
+                      <div className={`w-14 h-14 rounded-2xl ${stat.color} flex items-center justify-center shadow-inner`}>
                         <stat.icon size={24} />
                       </div>
                       <div>
@@ -600,7 +600,7 @@ const Marks = () => {
                     </div>
                   </div>
 
-                  <div className="lg:col-span-2 bg-white rounded-[2.5rem] border border-gray-100 shadow-sm p-8 space-y-6">
+                  <div className="lg:col-span-2 bg-white rounded-3xl border border-gray-100 shadow-lg p-8 space-y-6">
                     <div className="flex items-center justify-between">
                       <h3 className="text-xl font-black italic">Student Performance Grid</h3>
                       <button className="text-[10px] font-black text-primary uppercase tracking-widest hover:underline">View Detailed Report</button>
@@ -677,11 +677,11 @@ const MarkUploadModal = ({ onClose, selection }: any) => {
       >
         <div className="flex items-center justify-between">
           <div className="space-y-1">
-             <h2 className="text-3xl font-black italic tracking-tight">Bulk Upload</h2>
+             <h2 className="text-3xl font-bold tracking-tight">Bulk Upload</h2>
              <p className="text-text-muted font-medium text-sm">Automate marks entry via Excel workbook.</p>
           </div>
-          <button onClick={onClose} className="w-12 h-12 bg-gray-50 rounded-full flex items-center justify-center text-text-muted hover:bg-rose-50 hover:text-rose-600 transition-all">
-            <Users className="rotate-45" />
+          <button onClick={onClose} className="w-12 h-12 bg-gray-50 rounded-full flex items-center justify-center text-text-muted hover:bg-rose-50 hover:text-rose-600 transition-all shadow-sm">
+            <X size={24} />
           </button>
         </div>
 
@@ -718,9 +718,9 @@ const MarkUploadModal = ({ onClose, selection }: any) => {
         <button 
            onClick={handleUpload}
            disabled={!file || isUploading}
-           className="w-full py-5 bg-text text-white rounded-2xl font-black shadow-xl hover:bg-black transition-all flex items-center justify-center gap-3 disabled:opacity-50"
+           className="w-full py-5 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-2xl font-black shadow-xl hover:scale-105 transition-all duration-300 flex items-center justify-center gap-3 disabled:opacity-50 active:scale-95"
         >
-          {isUploading ? <Loader2 className="animate-spin" /> : <TrendingUp size={20} />}
+          {isUploading ? <Loader2 size={18} className="animate-spin" /> : <TrendingUp size={20} />}
           Start Analysis & Upload
         </button>
       </motion.div>

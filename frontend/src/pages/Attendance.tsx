@@ -300,13 +300,13 @@ const Attendance = () => {
           <div className="flex bg-gray-50 p-1 rounded-2xl border border-gray-100 shadow-inner">
             <button 
                 onClick={() => setMode('take')}
-                className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${mode === 'take' ? 'bg-primary text-white shadow-lg shadow-primary/20' : 'text-text-muted hover:text-text'}`}
+                className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${mode === 'take' ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg' : 'text-text-muted hover:text-text'}`}
             >
                 <Users size={14} /> Take
             </button>
             <button 
                 onClick={() => setMode('view')}
-                className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${mode === 'view' ? 'bg-primary text-white shadow-lg shadow-primary/20' : 'text-text-muted hover:text-text'}`}
+                className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${mode === 'view' ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg' : 'text-text-muted hover:text-text'}`}
             >
                 <History size={14} /> Records
             </button>
@@ -328,7 +328,7 @@ const Attendance = () => {
                 <button 
                   onClick={() => setInputMode('auto')}
                   className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
-                    inputMode === 'auto' ? 'bg-primary text-white shadow-lg shadow-primary/20' : 'text-text-muted hover:text-primary'
+                    inputMode === 'auto' ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg' : 'text-text-muted hover:text-primary'
                   }`}
                 >
                   Auto Detect
@@ -336,7 +336,7 @@ const Attendance = () => {
                 <button 
                   onClick={() => setInputMode('manual')}
                   className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
-                    inputMode === 'manual' ? 'bg-primary text-white shadow-lg shadow-primary/20' : 'text-text-muted hover:text-primary'
+                    inputMode === 'manual' ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg' : 'text-text-muted hover:text-primary'
                   }`}
                 >
                   Manual Select
@@ -346,7 +346,7 @@ const Attendance = () => {
             {inputMode === 'auto' ? (
               /* Ongoing Class Card (Existing Auto UI) */
               currentClass ? (
-                <div className="bg-white p-8 rounded-[3rem] border border-gray-100 shadow-xl shadow-primary/5 relative overflow-hidden group">
+                <div className="bg-white p-8 rounded-3xl border border-gray-100 shadow-xl relative overflow-hidden group">
                   <div className="absolute top-0 right-0 w-80 h-80 bg-primary/5 rounded-full -mr-40 -mt-40 blur-3xl group-hover:bg-primary/10 transition-colors" />
                   <div className="relative flex flex-col md:flex-row md:items-center justify-between gap-6">
                     <div className="flex items-center gap-8">
@@ -380,7 +380,7 @@ const Attendance = () => {
                   </div>
                 </div>
               ) : (
-                <div className="bg-gray-50/50 p-20 rounded-[3rem] border-2 border-dashed border-gray-200 text-center space-y-6">
+                <div className="bg-gray-50/50 p-20 rounded-3xl border-2 border-dashed border-gray-200 text-center space-y-6">
                    <div className="w-24 h-24 bg-white rounded-full flex items-center justify-center mx-auto shadow-sm text-text-muted/20 border border-gray-100">
                      <AlertCircle size={48} />
                    </div>
@@ -392,7 +392,7 @@ const Attendance = () => {
               )
             ) : (
               /* Manual Selection Form (New Feature) */
-              <div className="bg-white p-10 rounded-[3rem] border border-gray-100 shadow-2xl shadow-primary/5 space-y-10 relative overflow-hidden">
+              <div className="bg-white p-10 rounded-3xl border border-gray-100 shadow-2xl space-y-10 relative overflow-hidden">
                 <div className="absolute top-0 right-0 w-4 h-full bg-primary/20 rounded-l-full opacity-5" />
                 <div className="grid md:grid-cols-3 gap-8 relative">
                    <div className="space-y-3">
@@ -498,7 +498,7 @@ const Attendance = () => {
                   <motion.div 
                     initial={{ opacity: 0, y: 10 }} 
                     animate={{ opacity: 1, y: 0 }}
-                    className={`p-6 rounded-[2rem] border flex flex-col md:flex-row items-start md:items-center justify-between gap-4 ${
+                    className={`p-6 rounded-2xl border flex flex-col md:flex-row items-start md:items-center justify-between gap-4 ${
                       isEditMode 
                         ? 'bg-amber-50 border-amber-200' 
                         : 'bg-primary/5 border-primary/10'
@@ -590,10 +590,10 @@ const Attendance = () => {
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: index * 0.01 }}
-                      className={`p-6 rounded-[2.5rem] border-2 transition-all cursor-pointer group relative overflow-hidden ${
+                      className={`p-6 rounded-2xl border-2 transition-all cursor-pointer group relative overflow-hidden ${
                         attendanceMap[student.id] === 'P' 
-                          ? 'bg-emerald-50 border-emerald-100 shadow-xl shadow-emerald-500/5' 
-                          : 'bg-rose-50 border-rose-100 shadow-xl shadow-rose-500/5'
+                          ? 'bg-emerald-50 border-emerald-100 shadow-lg' 
+                          : 'bg-rose-50 border-rose-100 shadow-lg'
                       }`}
                       onClick={() => toggleStudent(student.id)}
                     >
@@ -638,7 +638,7 @@ const Attendance = () => {
                   <motion.div 
                     initial={{ y: 100 }}
                     animate={{ y: 0 }}
-                    className="bg-text/95 backdrop-blur-3xl border border-white/10 p-8 rounded-[3rem] shadow-2xl flex flex-col md:flex-row items-center justify-between gap-8"
+                    className="bg-slate-900/95 backdrop-blur-3xl border border-white/10 p-8 rounded-3xl shadow-2xl flex flex-col md:flex-row items-center justify-between gap-8"
                   >
                     <div className="flex items-center gap-8">
                        <div className="hidden lg:flex -space-x-4">
@@ -676,7 +676,7 @@ const Attendance = () => {
                        <button 
                          onClick={handleMarkAttendance}
                          disabled={isSubmitting || (inputMode === 'manual' && !canSubmitManual)}
-                         className="w-full md:w-64 px-10 py-5 bg-primary text-white rounded-[1.8rem] font-black shadow-2xl shadow-primary/40 hover:bg-primary-dark transition-all active:scale-95 flex items-center justify-center gap-4 group disabled:opacity-50 disabled:cursor-not-allowed"
+                         className="w-full md:w-64 px-10 py-5 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-2xl font-black shadow-xl hover:scale-105 transition-all duration-300 active:scale-95 flex items-center justify-center gap-4 group disabled:opacity-50 disabled:cursor-not-allowed"
                        >
                          {isSubmitting ? (
                            <><Loader2 size={20} className="animate-spin" /> Syncing...</>

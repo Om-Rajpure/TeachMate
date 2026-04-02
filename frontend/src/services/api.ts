@@ -40,6 +40,8 @@ export const timetableService = {
     });
   },
   getAllStructured: () => api.get('/timetable/all_grouped/'),
+  getAllGrouped: () => api.get<Record<string, any[]>>('/timetable/all_grouped/'),
+  exists: () => api.get<{ exists: boolean }>('/timetable/exists/'),
   parse: (file: File) => {
     const formData = new FormData();
     formData.append('file', file);
