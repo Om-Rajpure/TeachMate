@@ -70,7 +70,7 @@ const Resources: React.FC = () => {
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-8">
+    <div className="max-w-7xl mx-auto px-4 py-6 md:py-8">
       {/* Header Section */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-12">
         <div>
@@ -151,7 +151,7 @@ const Resources: React.FC = () => {
                 transition={{ delay: index * 0.05 }}
                 className="group bg-white rounded-3xl border border-gray-100 shadow-md hover:shadow-xl transition-all duration-500 overflow-hidden"
               >
-                <div className="p-6">
+                <div className="p-5 sm:p-6">
                   <div className="flex items-start justify-between mb-4">
                     <div className={`p-4 rounded-2xl ${res.file_type === 'pdf' ? 'bg-rose-50 text-rose-500' : 'bg-amber-50 text-amber-500'} group-hover:scale-110 transition-transform duration-500`}>
                       {res.file_type === 'pdf' ? <FileText size={28} /> : <Presentation size={28} />}

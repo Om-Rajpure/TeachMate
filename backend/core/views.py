@@ -1356,31 +1356,31 @@ class MarksViewSet(viewsets.ModelViewSet):
 @api_view(['POST'])
 def upload_syllabus(request, subject_id):
     """
-    Standardized syllabus host using the new URL structure.
-    Expected by frontend: Returns parsed entries for verification.
+    Standardized syllabus parsing endpoint.
+    Uses TimetableParser to extract data from Excel/PDF and returns it for verification.
     """
-    file_obj = request.FILES.get('file')
-    if not file_obj:
-        return Response({'error': 'No file provided'}, status=status.HTTP_400_BAD_REQUEST)
+    file = request.FILES.get('file')
+    subject_type = request.data.get('type', 'theory')
+
+    if not file:
+        return Response({"error": "No file uploaded"}, status=400)
 
     # Save temporarily to parse
-    path = default_storage.save('tmp/' + file_obj.name, ContentFile(file_obj.read()))
+    path = default_storage.save('tmp/' + file.name, ContentFile(file.read()))
     full_path = os.path.join(settings.MEDIA_ROOT, path)
 
     try:
-        subject = get_object_or_404(Subject, id=subject_id)
-        
-        # Use existing robust parser
-        if subject.subject_type == 'practical':
+        if subject_type == 'practical':
+            # Returns { entries: [...], has_assignments: bool, ... }
             data = TimetableParser.parse_practical(full_path)
+            return Response(data)
         else:
-            data = TimetableParser.parse_syllabus(full_path)
-        
-        print(f"DEBUG: Parsed {len(data) if isinstance(data, list) else 'meta'} entries for subject {subject_id}")
-        return Response(data)
+            # Returns list of entries
+            entries = TimetableParser.parse_syllabus(full_path)
+            return Response(entries)
     except Exception as e:
-        print(f"ERROR: Syllabus Upload failed: {str(e)}")
-        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        print(f"ERROR parsing syllabus: {str(e)}")
+        return Response({"error": str(e)}, status=400)
     finally:
         if os.path.exists(full_path):
             os.remove(full_path)

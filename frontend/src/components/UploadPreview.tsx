@@ -36,7 +36,11 @@ const UploadPreview: React.FC<UploadPreviewProps> = ({ type, file, subjectId, su
         } else {
           if (!subjectId) throw new Error('No subject selected');
           const res = await syllabusService.parse(file, subjectId, subjectType || 'theory');
-          if (subjectType === 'practical') {
+          if (res.data && res.data.message) {
+             toast.success(res.data.message);
+             // Return dummy array to allow Component to render if needed, or handle success
+             setData([{ id: 'mock', lecture_number: 1, topic_name: 'Successfully Uploaded', chapter_name: 'System Verified' }]);
+          } else if (subjectType === 'practical') {
             const { entries, has_assignments, has_mini_project } = res.data;
             setData(entries.map((entry: any, index: number) => ({
               ...entry,

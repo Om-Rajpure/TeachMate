@@ -62,20 +62,20 @@ const LoginPage = () => {
       </motion.div>
 
       {/* Login Form */}
-      <div className="flex-1 flex items-center justify-center p-6">
+      <div className="flex-1 flex items-center justify-center p-4 sm:p-6">
         <motion.div
           initial={{ opacity: 0, y: 20, scale: 0.98 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
           transition={{ duration: 0.5, ease: [0.25, 0.46, 0.45, 0.94] }}
-          className="w-full max-w-md bg-white p-8 rounded-3xl shadow-2xl border border-gray-100"
+          className="w-full max-w-md bg-white p-6 sm:p-8 rounded-3xl shadow-2xl border border-gray-100"
         >
           {/* Logo */}
-          <div className="flex flex-col items-center mb-8">
-            <div className="w-14 h-14 rounded-2xl bg-primary flex items-center justify-center text-white font-bold text-2xl shadow-sm mb-4">
+          <div className="flex flex-col items-center mb-6 sm:mb-8">
+            <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-primary flex items-center justify-center text-white font-bold text-xl sm:text-2xl shadow-sm mb-4">
               T
             </div>
-            <h1 className="text-2xl font-extrabold text-text tracking-tight">Welcome back</h1>
-            <p className="text-sm text-text-muted mt-1">Sign in to your TeachMate account</p>
+            <h1 className="text-xl sm:text-2xl font-extrabold text-text tracking-tight">Welcome back</h1>
+            <p className="text-xs sm:text-sm text-text-muted mt-1">Sign in to your TeachMate account</p>
           </div>
 
           {/* Error Alert */}

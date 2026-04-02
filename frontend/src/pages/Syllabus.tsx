@@ -252,113 +252,149 @@ const Syllabus = () => {
     );
   }
 
-  if (isMobile) {
-    return (
-      <div className="px-1">
-        <header className="py-10 space-y-2 px-3">
-           <div className="flex items-center gap-2 text-primary font-black text-[10px] uppercase tracking-[0.3em]">
-             <Target size={14} /> Curriculum Planner
-           </div>
-           <h1 className="text-5xl font-black text-text italic tracking-tighter leading-tight">Syllabus.</h1>
-           <div className="pt-6 flex items-center gap-3">
-              <button onClick={() => { setShowUploadModal(true); setUploadStep(0); }} className="flex-1 flex items-center justify-center gap-3 py-4 bg-white border border-gray-100 text-primary font-black text-xs rounded-2xl shadow-xl shadow-gray-200/20"><Upload size={18} /> Upload</button>
-              <button onClick={() => setShowManagePanel(true)} className="w-14 h-14 bg-gray-900 text-white flex items-center justify-center rounded-2xl shadow-xl shadow-gray-900/20"><Edit2 size={18} /></button>
+  return (
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 overflow-x-hidden pb-12">
+      {/* Header Section */}
+      {isMobile ? (
+        <header className="py-10 space-y-4">
+           <div className="flex flex-col sm:flex-row justify-between items-center gap-3">
+              <div className="space-y-1 text-center sm:text-left">
+                <div className="flex items-center justify-center sm:justify-start gap-2 text-primary font-black text-[10px] uppercase tracking-[0.3em]">
+                  <Target size={14} /> Curriculum Planner
+                </div>
+                <h1 className="text-5xl font-black text-text italic tracking-tighter leading-tight">Syllabus.</h1>
+              </div>
+              <div className="flex items-center gap-3 w-full sm:w-auto">
+                 <button 
+                  onClick={() => { setShowUploadModal(true); setUploadStep(0); }} 
+                  className="flex-1 sm:w-auto flex items-center justify-center gap-3 px-4 py-3 bg-gradient-to-r from-blue-500 to-purple-500 text-white font-black text-xs rounded-xl shadow-xl shadow-blue-200/20 active:scale-95 transition-all"
+                >
+                  <Upload size={18} /> Upload
+                </button>
+                 <button 
+                  onClick={() => setShowManagePanel(true)} 
+                  className="w-12 h-12 bg-gray-900 text-white flex items-center justify-center rounded-xl shadow-xl shadow-gray-900/20 active:scale-95 transition-all"
+                >
+                  <Edit2 size={18} />
+                </button>
+              </div>
            </div>
         </header>
-        <MobileSyllabus activeTab={activeTab} setActiveTab={setActiveTab} subjects={subjects} selectedSubject={selectedSubject} setSelectedSubject={setSelectedSubject} groupedData={groupedData} experiments={experiments} stats={stats} />
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-10 pb-12">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-8">
-        <div className="space-y-1">
-          <div className="flex items-center gap-2 text-primary font-bold text-xs uppercase tracking-widest mb-1"><Target size={14} /> Curriculum</div>
-          <h1 className="text-4xl font-black text-text italic tracking-tighter">Syllabus Tracker</h1>
+      ) : (
+        <div className="border-b border-gray-100 mb-10">
+          <div className="flex flex-col sm:flex-row justify-between items-center gap-3 py-10">
+            <div className="space-y-1 text-center sm:text-left">
+              <div className="flex items-center justify-center sm:justify-start gap-2 text-primary font-bold text-xs uppercase tracking-widest mb-1">
+                <Target size={14} /> Curriculum
+              </div>
+              <h1 className="text-4xl font-black text-text italic tracking-tighter">Syllabus Tracker</h1>
+            </div>
+            <div className="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto">
+              <div className="flex items-center gap-1 p-1 bg-gray-50 rounded-2xl border w-full sm:w-auto justify-center">
+                <button onClick={() => setActiveTab('theory')} className={`flex-1 sm:flex-none px-4 py-2 rounded-xl text-[10px] uppercase font-black transition-all ${activeTab === 'theory' ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg' : 'text-text-muted'}`}>Theory</button>
+                <button onClick={() => setActiveTab('practical')} className={`flex-1 sm:flex-none px-4 py-2 rounded-xl text-[10px] uppercase font-black transition-all ${activeTab === 'practical' ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg' : 'text-text-muted'}`}>Practical</button>
+              </div>
+              <button 
+                onClick={() => { setShowUploadModal(true); setUploadStep(0); }} 
+                className="w-full sm:w-auto px-4 py-2 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-xl font-bold shadow-lg hover:shadow-blue-200 flex items-center justify-center gap-2 active:scale-95 transition-all"
+              >
+                <Upload size={18}/><span>Upload</span>
+              </button>
+            </div>
+          </div>
         </div>
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-1 p-1 bg-gray-50 rounded-2xl border">
-            <button onClick={() => setActiveTab('theory')} className={`px-4 py-2 rounded-xl text-[10px] uppercase font-black transition-all ${activeTab === 'theory' ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg' : 'text-text-muted'}`}>Theory</button>
-            <button onClick={() => setActiveTab('practical')} className={`px-4 py-2 rounded-xl text-[10px] uppercase font-black transition-all ${activeTab === 'practical' ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg' : 'text-text-muted'}`}>Practical</button>
-          </div>
-          <button onClick={() => { setShowUploadModal(true); setUploadStep(0); }} className="px-6 py-3 bg-white border border-gray-100 rounded-2xl text-primary font-bold shadow-lg hover:bg-gray-50 flex items-center gap-2 active:scale-95 transition-all"><Upload size={18}/><span>Upload</span></button>
-        </div>
-      </div>
+      )}
 
-      <div className="space-y-8">
-        <div className="flex items-center gap-4">
-          <div className="flex-1 flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
-             <button onClick={() => setSelectedSubject('all')} className={`px-5 py-2.5 rounded-xl text-xs font-bold border shrink-0 ${selectedSubject === 'all' ? 'bg-text text-white border-text' : 'bg-white'}`}>All</button>
-             {subjects.filter(s => (s as any).subject_type === activeTab).map(subject => (
-                <div key={subject.id} className="group/subject relative flex items-center">
-                   <button onClick={() => setSelectedSubject(subject.id)} className={`pl-5 pr-10 py-2.5 rounded-xl text-xs font-bold border shrink-0 ${selectedSubject === subject.id ? `${themeBg} text-white` : 'bg-white'}`}>{subject.name}</button>
-                   <div className="absolute right-2 flex items-center gap-1 opacity-0 group-hover:opacity-100">
-                      <button onClick={(e) => { e.stopPropagation(); setShowSubjectEditModal(subject); }} className="p-1 hover:bg-black/10 rounded-md"><Edit2 size={12}/></button>
-                      <button onClick={(e) => handleDeleteSubject(e, subject.id)} className="p-1 hover:bg-black/10 rounded-md"><Trash2 size={12}/></button>
-                   </div>
-                </div>
-             ))}
-          </div>
-          <button onClick={() => setShowManagePanel(!showManagePanel)} className="px-5 py-2.5 rounded-xl text-xs font-bold border flex items-center gap-2">{showManagePanel ? 'Close' : 'Manage'}</button>
-        </div>
-
-        <section className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="bg-white p-6 rounded-2xl border shadow-lg">
-             <p className="text-sm font-bold text-text-muted mb-1">Progress</p>
-             <h3 className="text-4xl font-black">{stats.avg}%</h3>
-             <div className="mt-4 h-2 w-full bg-gray-100 rounded-full overflow-hidden">
-                <motion.div initial={{ width: 0 }} animate={{ width: `${stats.avg}%` }} className={`h-full bg-gradient-to-r from-blue-500 to-purple-500`} />
-             </div>
-          </div>
-          <div className="bg-white p-6 rounded-2xl border shadow-lg flex items-center gap-4">
-             <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${activeTab === 'theory' ? 'bg-blue-50 text-blue-600' : 'bg-purple-50 text-purple-600'}`}>{activeTab === 'theory' ? <Layers size={24}/> : <FlaskConical size={24}/>}</div>
-             <div><h3 className="text-2xl font-bold">{activeTab === 'theory' ? chapters.length : experiments.length} Items</h3></div>
-          </div>
-          <div className={`${activeTab === 'theory' ? 'bg-primary/5 border-primary/10 text-primary' : 'bg-purple-50 border-purple-100 text-purple-600'} p-6 rounded-2xl border flex items-start gap-4`}>
-             <div className="mt-1">{suggestion.icon}</div>
-             <div><p className="text-sm font-medium text-text">{suggestion.text}</p></div>
-          </div>
-        </section>
-
-        {!groupedData.length && !experiments.length ? (
-           <div className="py-32 text-center bg-white rounded-3xl border-2 border-dashed flex flex-col items-center shadow-lg">
-              <button onClick={() => { setShowUploadModal(true); setUploadStep(0); }} className="px-10 py-5 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-bold rounded-2xl shadow-xl hover:scale-105 transition-all duration-300 active:scale-95">Upload Syllabus</button>
-           </div>
-        ) : activeTab === 'theory' ? (
-           <div className="space-y-10">
-              {groupedData.map((group, idx) => (
-                 <div key={group.chapter.id} className="space-y-4">
-                    <div className="flex gap-3 items-center">
-                       <div className="w-10 h-10 bg-gray-900 text-white rounded-xl flex items-center justify-center font-black">{idx + 1}</div>
-                       <h3 className="font-black text-xl">{group.chapter.name}</h3>
+      {/* Main Content Section */}
+      {isMobile ? (
+        <MobileSyllabus 
+          activeTab={activeTab} 
+          setActiveTab={setActiveTab} 
+          subjects={subjects} 
+          selectedSubject={selectedSubject} 
+          setSelectedSubject={setSelectedSubject} 
+          groupedData={groupedData} 
+          experiments={experiments} 
+          stats={stats} 
+        />
+      ) : (
+        <div className="space-y-10">
+          <div className="space-y-8">
+            <div className="flex items-center gap-4">
+              <div className="flex-1 flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
+                 <button onClick={() => setSelectedSubject('all')} className={`px-5 py-2.5 rounded-xl text-xs font-bold border shrink-0 ${selectedSubject === 'all' ? 'bg-text text-white border-text' : 'bg-white'}`}>All</button>
+                 {subjects.filter(s => (s as any).subject_type === activeTab).map(subject => (
+                    <div key={subject.id} className="group/subject relative flex items-center">
+                       <button onClick={() => setSelectedSubject(subject.id)} className={`pl-5 pr-10 py-2.5 rounded-xl text-xs font-bold border shrink-0 ${selectedSubject === subject.id ? `${themeBg} text-white` : 'bg-white'}`}>{subject.name}</button>
+                       <div className="absolute right-2 flex items-center gap-1 opacity-0 group-hover:opacity-100">
+                          <button onClick={(e) => { e.stopPropagation(); setShowSubjectEditModal(subject); }} className="p-1 hover:bg-black/10 rounded-md"><Edit2 size={12}/></button>
+                          <button onClick={(e) => handleDeleteSubject(e, subject.id)} className="p-1 hover:bg-black/10 rounded-md"><Trash2 size={12}/></button>
+                       </div>
                     </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                        {group.plans.map(p => (
-                          <div key={p.id} className="bg-white p-4 rounded-2xl border border-gray-100 flex items-center justify-between group hover:border-primary/20 hover:shadow-md transition-all">
-                             <span className="font-bold text-sm text-text">L{p.lecture_number}: {p.topic_name}</span>
-                             {p.status === 'Completed' ? <CheckCircle2 size={16} className="text-emerald-500"/> : <Clock size={16} className="text-gray-300"/>}
-                          </div>
-                       ))}
-                    </div>
+                 ))}
+              </div>
+              <button onClick={() => setShowManagePanel(!showManagePanel)} className="px-5 py-2.5 rounded-xl text-xs font-bold border flex items-center gap-2">{showManagePanel ? 'Close' : 'Manage'}</button>
+            </div>
+
+            <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="bg-white p-6 rounded-2xl border shadow-lg">
+                 <p className="text-sm font-bold text-text-muted mb-1">Progress</p>
+                 <h3 className="text-4xl font-black">{stats.avg}%</h3>
+                 <div className="mt-4 h-2 w-full bg-gray-100 rounded-full overflow-hidden">
+                    <motion.div initial={{ width: 0 }} animate={{ width: `${stats.avg}%` }} className={`h-full bg-gradient-to-r from-blue-500 to-purple-500`} />
                  </div>
-              ))}
-           </div>
-        ) : (
-           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-               {experiments.map(e => (
-                  <div key={e.id} className="bg-white p-6 rounded-2xl border border-gray-100 flex items-center justify-between shadow-lg hover:shadow-xl transition-shadow">
-                     <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 bg-purple-50 text-purple-600 rounded-xl flex items-center justify-center font-black shadow-inner">{e.experiment_number}</div>
-                        <h4 className="font-bold text-text">{e.title}</h4>
-                     </div>
-                     {e.status === 'Completed' ? <CheckCircle2 size={24} className="text-emerald-500"/> : <Clock size={24} className="text-gray-100"/>}
-                  </div>
-               ))}
-           </div>
-        )}
-      </div>
+              </div>
+              <div className="bg-white p-6 rounded-2xl border shadow-lg flex items-center gap-4">
+                 <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${activeTab === 'theory' ? 'bg-blue-50 text-blue-600' : 'bg-purple-50 text-purple-600'}`}>{activeTab === 'theory' ? <Layers size={24}/> : <FlaskConical size={24}/>}</div>
+                 <div><h3 className="text-2xl font-bold">{activeTab === 'theory' ? chapters.length : experiments.length} Items</h3></div>
+              </div>
+              <div className={`${activeTab === 'theory' ? 'bg-primary/5 border-primary/10 text-primary' : 'bg-purple-50 border-purple-100 text-purple-600'} p-6 rounded-2xl border flex items-start gap-4`}>
+                 <div className="mt-1">{suggestion.icon}</div>
+                 <div><p className="text-sm font-medium text-text">{suggestion.text}</p></div>
+              </div>
+            </section>
 
+            {!groupedData.length && !experiments.length ? (
+               <div className="py-32 text-center bg-white rounded-3xl border-2 border-dashed flex flex-col items-center shadow-lg">
+                  <button onClick={() => { setShowUploadModal(true); setUploadStep(0); }} className="px-10 py-5 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-bold rounded-2xl shadow-xl hover:scale-105 transition-all duration-300 active:scale-95">Upload Syllabus</button>
+               </div>
+            ) : activeTab === 'theory' ? (
+               <div className="space-y-10">
+                  {groupedData.map((group, idx) => (
+                     <div key={group.chapter.id} className="space-y-4">
+                        <div className="flex gap-3 items-center">
+                           <div className="w-10 h-10 bg-gray-900 text-white rounded-xl flex items-center justify-center font-black">{idx + 1}</div>
+                           <h3 className="font-black text-xl">{group.chapter.name}</h3>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                            {group.plans.map(p => (
+                              <div key={p.id} className="bg-white p-4 rounded-2xl border border-gray-100 flex items-center justify-between group hover:border-primary/20 hover:shadow-md transition-all">
+                                 <span className="font-bold text-sm text-text">L{p.lecture_number}: {p.topic_name}</span>
+                                 {p.status === 'Completed' ? <CheckCircle2 size={16} className="text-emerald-500"/> : <Clock size={16} className="text-gray-300"/>}
+                              </div>
+                           ))}
+                        </div>
+                     </div>
+                  ))}
+               </div>
+            ) : (
+               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                   {experiments.map(e => (
+                      <div key={e.id} className="bg-white p-6 rounded-2xl border border-gray-100 flex items-center justify-between shadow-lg hover:shadow-xl transition-shadow">
+                         <div className="flex items-center gap-4">
+                            <div className="w-12 h-12 bg-purple-50 text-purple-600 rounded-xl flex items-center justify-center font-black shadow-inner">{e.experiment_number}</div>
+                            <h4 className="font-bold text-text">{e.title}</h4>
+                         </div>
+                         {e.status === 'Completed' ? <CheckCircle2 size={24} className="text-emerald-500"/> : <Clock size={24} className="text-gray-100"/>}
+                      </div>
+                   ))}
+               </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Shared Modals */}
       <AnimatePresence>
          {showSubjectEditModal && (
             <div className="fixed inset-0 z-[110] flex items-center justify-center p-6">

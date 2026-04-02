@@ -125,7 +125,7 @@ const Dashboard = () => {
               exit={{ opacity: 0, scale: 0.95 }}
               className="bg-white rounded-3xl border border-gray-100 shadow-xl overflow-hidden"
             >
-              <div className="p-8 md:p-10 flex flex-col md:flex-row justify-between gap-8">
+              <div className="p-6 md:p-10 flex flex-col md:flex-row justify-between gap-8">
                 <div className="space-y-4">
                   <div className="flex items-center gap-2 text-primary font-bold text-sm tracking-wider uppercase">
                     <span className="relative flex h-2 w-2">
@@ -134,11 +134,11 @@ const Dashboard = () => {
                     </span>
                     Ongoing Session
                   </div>
-                  <h2 className="text-3xl md:text-4xl font-black text-text capitalize">
+                  <h2 className="text-2xl md:text-4xl font-black text-text capitalize">
                     {activeLecture.subject_details?.name}
                   </h2>
-                  <div className="flex flex-wrap gap-4 text-text-muted font-medium">
-                    <span className="flex items-center gap-2 bg-gray-50 px-3 py-1.5 rounded-xl border border-gray-100">
+                  <div className="flex flex-wrap gap-3 text-text-muted font-medium">
+                    <span className="flex items-center gap-2 bg-gray-50 px-3 py-1.5 rounded-xl border border-gray-100 text-xs">
                       <Clock size={16} /> {activeLecture.start_time.slice(0, 5)} - {activeLecture.end_time.slice(0, 5)}
                     </span>
                     <span className="flex items-center gap-2 bg-gray-50 px-3 py-1.5 rounded-xl border border-gray-100">
@@ -175,7 +175,7 @@ const Dashboard = () => {
                     exit={{ height: 0, opacity: 0 }}
                     className="border-t border-gray-100 bg-gray-50/50"
                   >
-                    <div className="p-8 md:p-10 space-y-6">
+                    <div className="p-6 md:p-10 space-y-6">
                       <div className="grid md:grid-cols-2 gap-6">
                         <div className="space-y-2">
                           <label className="text-sm font-bold text-text-muted">Topic to teach</label>
@@ -192,7 +192,7 @@ const Dashboard = () => {
                             </div>
                           </div>
                         </div>
-                        <div className="flex items-end gap-3">
+                        <div className="flex flex-col sm:flex-row items-stretch sm:items-end gap-3">
                            <button 
                              onClick={handleStartLecture}
                              disabled={isSubmitting}
@@ -290,7 +290,7 @@ const Dashboard = () => {
               <button 
                 key={action.label}
                 onClick={() => navigate(action.path)}
-                className="group flex flex-col items-center justify-center p-6 bg-white border border-gray-100 rounded-3xl hover:shadow-2xl hover:border-primary/20 transition-all duration-300 text-center shadow-lg"
+                className="group flex flex-col items-center justify-center p-4 sm:p-6 bg-white border border-gray-100 rounded-3xl hover:shadow-2xl hover:border-primary/20 transition-all duration-300 text-center shadow-lg"
               >
                 <div className={`${action.bg} ${action.color} p-4 rounded-2xl mb-3 group-hover:scale-110 transition-transform`}>
                   <action.icon size={24} />

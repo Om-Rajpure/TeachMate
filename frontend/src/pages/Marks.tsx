@@ -326,8 +326,8 @@ const Marks = () => {
                 <table className="w-full border-collapse">
                   <thead>
                     <tr className="bg-gray-50/50 border-b border-gray-100">
-                      <th className="px-8 py-5 text-left text-[10px] font-black text-text-muted uppercase tracking-widest sticky left-0 bg-white z-20 min-w-[100px]">Roll No</th>
-                      <th className="px-8 py-5 text-left text-[10px) font-black text-text-muted uppercase tracking-widest sticky left-[100px] bg-white z-20 min-w-[200px] border-r border-gray-100">Student Name</th>
+                      <th className="px-4 lg:px-8 py-5 text-left text-[10px] font-black text-text-muted uppercase tracking-widest sticky left-0 bg-white z-20 min-w-[60px] lg:min-w-[100px]">Roll No</th>
+                      <th className="px-4 lg:px-8 py-5 text-left text-[10px] font-black text-text-muted uppercase tracking-widest sticky left-[60px] lg:left-[100px] bg-white z-20 min-w-[140px] lg:min-w-[200px] border-r border-gray-100">Student Name</th>
                       
                       {marksConfig?.type === 'theory' ? (
                         <>
@@ -394,8 +394,8 @@ const Marks = () => {
                       
                       return (
                         <tr key={student.id} className="hover:bg-gray-50/50 transition-colors group">
-                          <td className="px-8 py-6 font-black text-primary sticky left-0 bg-white z-10 group-hover:bg-gray-50">{student.roll_number || 'N/A'}</td>
-                          <td className="px-8 py-6 font-bold text-text sticky left-[100px] bg-white z-10 border-r border-gray-100 group-hover:bg-gray-50">{student.name}</td>
+                          <td className="px-4 lg:px-8 py-6 font-black text-primary sticky left-0 bg-white z-10 group-hover:bg-gray-50">{student.roll_number || 'N/A'}</td>
+                          <td className="px-4 lg:px-8 py-6 font-bold text-text sticky left-[60px] lg:left-[100px] bg-white z-10 border-r border-gray-100 group-hover:bg-gray-50">{student.name}</td>
                           
                           {marksConfig?.type === 'theory' ? (
                             <>
@@ -519,7 +519,7 @@ const Marks = () => {
               <motion.div 
                 initial={{ y: 100 }}
                 animate={{ y: 0 }}
-                className="bg-slate-900/95 backdrop-blur-xl border border-white/10 p-6 rounded-3xl shadow-2xl flex items-center justify-between gap-10"
+                className="bg-slate-900/95 backdrop-blur-xl border border-white/10 p-4 lg:p-6 rounded-3xl shadow-2xl flex flex-col md:flex-row items-center justify-between gap-4 lg:gap-10"
               >
                 <div className="flex items-center gap-6 px-4">
                   <div className="w-12 h-12 bg-primary/10 rounded-2xl flex items-center justify-center text-primary">
@@ -533,10 +533,10 @@ const Marks = () => {
                 <button 
                   onClick={handleSave}
                   disabled={isSubmitting || !selection.subject_id}
-                  className="px-10 py-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-2xl font-bold shadow-xl hover:scale-105 transition-all duration-300 active:scale-95 disabled:opacity-50 flex items-center gap-2"
+                  className="w-full md:w-auto px-6 lg:px-10 py-3 lg:py-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-2xl font-bold shadow-xl hover:scale-105 transition-all duration-300 active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2"
                 >
                   {isSubmitting ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
-                  Synchronize All Records
+                  <span>Synchronize Records</span>
                 </button>
               </motion.div>
             </div>

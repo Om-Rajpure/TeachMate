@@ -3,7 +3,8 @@ import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { 
   LayoutDashboard, Users, User, 
   CheckSquare, ListChecks, BarChart3, 
-  Bell, LogOut, Calendar, GraduationCap, FolderOpen
+  Bell, LogOut, Calendar, GraduationCap, FolderOpen,
+  Menu, X
 } from 'lucide-react';
 import { Toaster } from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -89,19 +90,34 @@ const Sidebar = () => {
 };
 
 const MobileNav = () => {
-  const navItems = [
+  const { logout } = useAuth();
+  const navigate = useNavigate();
+  const [showMore, setShowMore] = useState(false);
+
+  const primaryItems = [
     { name: 'Home', icon: LayoutDashboard, path: '/app/dashboard' },
     { name: 'Time', icon: Calendar, path: '/app/timetable' },
-    { name: 'Students', icon: Users, path: '/app/students' },
     { name: 'Attend', icon: CheckSquare, path: '/app/attendance' },
+    { name: 'Students', icon: Users, path: '/app/students' },
+  ];
+
+  const moreItems = [
+    { name: 'Marks', icon: GraduationCap, path: '/app/marks' },
+    { name: 'Syllabus', icon: ListChecks, path: '/app/syllabus' },
     { name: 'Resources', icon: FolderOpen, path: '/app/resources' },
     { name: 'Analytics', icon: BarChart3, path: '/app/analytics' },
   ];
 
+  const handleLogout = async () => {
+    await logout();
+    navigate('/');
+  };
+
   return (
-    <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 lg:hidden px-6 py-3 flex justify-around items-center z-50">
-      {navItems.map((item) => (
-        <NavLink
+    <>
+      <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 lg:hidden px-4 py-3 flex justify-around items-center z-50">
+        {primaryItems.map((item) => (
+          <NavLink
             key={item.path}
             to={item.path}
             className={({ isActive }: { isActive: boolean }) => 
@@ -112,9 +128,76 @@ const MobileNav = () => {
             <span className="text-[10px] font-medium">{item.name}</span>
           </NavLink>
         ))}
+        <button 
+          onClick={() => setShowMore(true)}
+          className="flex flex-col items-center gap-1 text-text-muted"
+        >
+          <Menu size={22} />
+          <span className="text-[10px] font-medium">More</span>
+        </button>
       </nav>
-    );
-  };
+
+      {/* More Menu Overlay */}
+      <AnimatePresence>
+        {showMore && (
+          <div className="fixed inset-0 z-[100] lg:hidden">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowMore(false)}
+              className="absolute inset-0 bg-black/20 backdrop-blur-sm"
+            />
+            <motion.div 
+              initial={{ y: '100%' }}
+              animate={{ y: 0 }}
+              exit={{ y: '100%' }}
+              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+              className="absolute bottom-0 left-0 right-0 bg-white rounded-t-[2.5rem] p-8 pb-12 shadow-2xl"
+            >
+              <div className="flex items-center justify-between mb-8">
+                <h3 className="text-xl font-black italic tracking-tighter">Menu</h3>
+                <button 
+                  onClick={() => setShowMore(false)}
+                  className="p-2 bg-gray-100 rounded-xl text-text-muted"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                {moreItems.map((item) => (
+                  <NavLink
+                    key={item.path}
+                    to={item.path}
+                    onClick={() => setShowMore(false)}
+                    className={({ isActive }: { isActive: boolean }) => 
+                      cn(
+                        "flex items-center gap-3 p-4 rounded-2xl font-bold transition-all",
+                        isActive ? "bg-blue-50 text-primary" : "bg-gray-50 text-text-muted hover:text-text"
+                      )
+                    }
+                  >
+                    <item.icon size={20} />
+                    <span className="text-sm">{item.name}</span>
+                  </NavLink>
+                ))}
+                
+                <button
+                  onClick={handleLogout}
+                  className="col-span-2 flex items-center justify-center gap-3 p-4 bg-red-50 text-red-600 rounded-2xl font-bold mt-4"
+                >
+                  <LogOut size={20} />
+                  <span>Sign out</span>
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+    </>
+  );
+};
   
   const Header = () => {
     const { pathname } = useLocation();
@@ -186,7 +269,7 @@ const MobileNav = () => {
                     : 'TeachMate';
   
     return (
-      <header className="fixed top-0 left-0 lg:left-64 right-0 h-16 bg-white/80 backdrop-blur-md z-30 px-6 py-4 border-b border-gray-100 flex items-center justify-between shadow-sm">
+      <header className="fixed top-0 left-0 lg:left-64 right-0 h-16 bg-white/80 backdrop-blur-md z-30 px-4 lg:px-6 py-4 border-b border-gray-100 flex items-center justify-between shadow-sm">
         <h1 className="text-xl font-black text-text italic tracking-tighter leading-tight">{pageTitle}</h1>
         <div className="flex items-center gap-6">
           <div className="relative" ref={dropdownRef}>
@@ -240,7 +323,7 @@ const MobileNav = () => {
         <Sidebar />
         <div className="flex-1 lg:ml-64 flex flex-col min-h-screen">
           <Header />
-          <main className="flex-1 mt-16 p-6 overflow-y-auto custom-scrollbar pb-24 lg:pb-8">
+          <main className="flex-1 mt-16 p-4 lg:p-6 overflow-y-auto custom-scrollbar pb-24 lg:pb-8">
             <div className="max-w-7xl mx-auto">
               <Outlet />
             </div>

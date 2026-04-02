@@ -122,10 +122,9 @@ export const syllabusService = {
   parse: (file: File, subjectId: number, type: 'theory' | 'practical' = 'theory') => {
     const formData = new FormData();
     formData.append('file', file);
+    formData.append('subject_id', subjectId.toString());
     formData.append('type', type);
-    return api.post(`/syllabus/${subjectId}/upload/`, formData, {
-      headers: { 'Content-Type': 'multipart/form-data' }
-    });
+    return api.post(`/syllabus/${subjectId}/upload/`, formData);
   },
   resetSyllabus: (subjectId: number) => api.post('/syllabus/lecture-plan/reset/', { subject_id: subjectId }),
   resetExperiments: (subjectId: number) => api.post('/syllabus/experiments/reset/', { subject_id: subjectId }),

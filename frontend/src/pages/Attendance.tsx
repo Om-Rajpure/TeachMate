@@ -394,7 +394,7 @@ const Attendance = () => {
               /* Manual Selection Form (New Feature) */
               <div className="bg-white p-10 rounded-3xl border border-gray-100 shadow-2xl space-y-10 relative overflow-hidden">
                 <div className="absolute top-0 right-0 w-4 h-full bg-primary/20 rounded-l-full opacity-5" />
-                <div className="grid md:grid-cols-3 gap-8 relative">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-8 relative">
                    <div className="space-y-3">
                       <label className="text-[10px] font-black text-text-muted uppercase tracking-[0.2em] ml-1">1. Select Subject</label>
                       <div className="relative group">
@@ -558,25 +558,25 @@ const Attendance = () => {
                       <span className="text-text-muted font-bold tracking-tight text-lg not-italic opacity-40 ml-2">{students.length} on roster</span>
                     </h3>
                   </div>
-                  <div className="flex items-center gap-4 bg-white p-2 rounded-2xl border border-gray-100 shadow-sm">
+                  <div className="flex items-center gap-2 p-1.5 bg-white rounded-2xl border border-gray-100 shadow-sm overflow-x-auto no-scrollbar">
                     <button 
                       onClick={() => {
                         const allP: Record<number, 'P' | 'A'> = {};
                         students.forEach((s: Student) => allP[s.id] = 'P');
                         setAttendanceMap(allP);
                       }}
-                      className="px-6 py-2.5 text-[10px] font-black text-emerald-600 uppercase tracking-widest hover:bg-emerald-50 rounded-xl transition-all"
+                      className="whitespace-nowrap px-4 lg:px-6 py-2.5 text-[10px] font-black text-emerald-600 uppercase tracking-widest hover:bg-emerald-50 rounded-xl transition-all"
                     >
                       All Present
                     </button>
-                    <div className="w-px h-6 bg-gray-100" />
+                    <div className="w-px h-6 bg-gray-100 shrink-0" />
                     <button 
                       onClick={() => {
                         const allA: Record<number, 'P' | 'A'> = {};
                         students.forEach((s: Student) => allA[s.id] = 'A');
                         setAttendanceMap(allA);
                       }}
-                      className="px-6 py-2.5 text-[10px] font-black text-rose-500 uppercase tracking-widest hover:bg-rose-50 rounded-xl transition-all"
+                      className="whitespace-nowrap px-4 lg:px-6 py-2.5 text-[10px] font-black text-rose-500 uppercase tracking-widest hover:bg-rose-50 rounded-xl transition-all"
                     >
                       All Absent
                     </button>
@@ -590,7 +590,7 @@ const Attendance = () => {
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: index * 0.01 }}
-                      className={`p-6 rounded-2xl border-2 transition-all cursor-pointer group relative overflow-hidden ${
+                      className={`p-4 sm:p-6 rounded-2xl border-2 transition-all cursor-pointer group relative overflow-hidden ${
                         attendanceMap[student.id] === 'P' 
                           ? 'bg-emerald-50 border-emerald-100 shadow-lg' 
                           : 'bg-rose-50 border-rose-100 shadow-lg'
@@ -638,7 +638,7 @@ const Attendance = () => {
                   <motion.div 
                     initial={{ y: 100 }}
                     animate={{ y: 0 }}
-                    className="bg-slate-900/95 backdrop-blur-3xl border border-white/10 p-8 rounded-3xl shadow-2xl flex flex-col md:flex-row items-center justify-between gap-8"
+                    className="bg-slate-900/95 backdrop-blur-3xl border border-white/10 p-6 md:p-8 rounded-3xl shadow-2xl flex flex-col md:flex-row items-center justify-between gap-6 md:gap-8"
                   >
                     <div className="flex items-center gap-8">
                        <div className="hidden lg:flex -space-x-4">
