@@ -1021,6 +1021,9 @@ class PracticalMarkViewSet(viewsets.ModelViewSet):
 
 from rest_framework.views import APIView
 import pandas as pd
+from django.http import HttpResponse
+import io
+from .services.export_templates import generate_theory_template, generate_practical_template
 
 class MarkUploadView(APIView):
     def post(self, request):
@@ -1352,6 +1355,112 @@ class MarksViewSet(viewsets.ModelViewSet):
     def list_by_subject(self, request, subject_id=None):
         marks = Marks.objects.filter(subject_id=subject_id)
         return Response(MarksSerializer(marks, many=True).data)
+
+    @action(detail=False, methods=['get'], url_path='export-template')
+    def export_template(self, request):
+        """
+        GET /api/marks/export-template/?subject_id=X&division_id=Y&batch_id=Z
+        Returns a downloadable .xlsx marks-entry template.
+        """
+        subject_id  = request.query_params.get('subject_id')
+        division_id = request.query_params.get('division_id')
+        batch_id    = request.query_params.get('batch_id')
+
+        # ── Validate required params ─────────────────────────
+        if not subject_id:
+            return Response({'error': 'subject_id is required'}, status=status.HTTP_400_BAD_REQUEST)
+        if not division_id:
+            return Response({'error': 'division_id is required'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            subject  = Subject.objects.get(id=subject_id)
+            division = Division.objects.get(id=division_id)
+        except Subject.DoesNotExist:
+            return Response({'error': 'Subject not found'}, status=status.HTTP_404_NOT_FOUND)
+        except Division.DoesNotExist:
+            return Response({'error': 'Division not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        batch = None
+        if batch_id:
+            try:
+                batch = Batch.objects.get(id=batch_id)
+            except Batch.DoesNotExist:
+                return Response({'error': 'Batch not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        # batch is optional — filter applied below if provided
+
+
+        # ── Fetch students (annotate roll for sorting) ────────
+        from django.db import models as db_models
+
+        # Primary: match by subject + division (+ batch if provided)
+        qs = Student.objects.filter(subject_links__subject=subject)
+        qs_div = qs.filter(subject_links__division=division)
+        if batch:
+            qs_div = qs_div.filter(subject_links__batch=batch)
+
+        students_qs = qs_div.annotate(
+            subject_roll=db_models.F('subject_links__roll_number')
+        ).order_by('subject_roll', 'name').distinct()
+
+        # Fallback: if no students found with division filter, try subject-only
+        # (handles legacy data where division_id is NULL in StudentSubject)
+        if not students_qs.exists():
+            fallback_qs = qs
+            if batch:
+                fallback_qs = fallback_qs.filter(subject_links__batch=batch)
+            students_qs = fallback_qs.annotate(
+                subject_roll=db_models.F('subject_links__roll_number')
+            ).order_by('subject_roll', 'name').distinct()
+
+        if not students_qs.exists():
+            return Response(
+                {'error': 'No students found for the selected filters'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        students = list(students_qs)
+
+        # ── Generate workbook ─────────────────────────────────
+        try:
+            if subject.subject_type == 'theory':
+                wb = generate_theory_template(subject, division, list(students))
+                safe_name = f"{subject.code} {division.name} Theory Marks Template"
+            else:
+                experiments = list(
+                    Experiment.objects.filter(subject=subject).order_by('experiment_number')
+                )
+                wb = generate_practical_template(
+                    subject, division, batch, list(students), experiments
+                )
+                batch_label = batch.name.replace(' ', '') if batch else 'AllBatches'
+                safe_name = f"{subject.name} {division.name} {batch_label} Practical Template"
+
+            # Remove chars unsafe for filenames
+            import re
+            safe_name = re.sub(r'[\\/*?:"<>|]', '', safe_name)
+
+            # ── Stream to HttpResponse ────────────────────────
+            buffer = io.BytesIO()
+            wb.save(buffer)
+            buffer.seek(0)
+
+            response = HttpResponse(
+                buffer.read(),
+                content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+            )
+            response['Content-Disposition'] = f'attachment; filename="{safe_name}.xlsx"'
+            response['Access-Control-Expose-Headers'] = 'Content-Disposition'
+            return response
+
+        except Exception as e:
+            import traceback
+            print(f"ERROR generating template: {traceback.format_exc()}")
+            return Response(
+                {'error': f'Failed to generate template: {str(e)}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
 
 @api_view(['POST'])
 def upload_syllabus(request, subject_id):

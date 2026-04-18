@@ -17,7 +17,7 @@ def test_lab_logic():
     entries = TimetableParser.parse_excel(file_path)
     for entry in entries:
         print(f"Subject: {entry['subject_code']}, Type: {entry['subject_type']}, Batch: {entry['batch']}")
-    
+
     os.remove(file_path)
 
 if __name__ == "__main__":

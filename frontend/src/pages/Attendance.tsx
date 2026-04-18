@@ -162,6 +162,7 @@ const Attendance = () => {
       setSyllabusLoaded(true);
       fetchStudentsForClass(Number(subjectId));
     } catch (err) {
+      
       toast.error('Failed to load syllabus');
     } finally {
       setManualLoading(false);

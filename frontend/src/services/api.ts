@@ -176,6 +176,16 @@ export const markService = {
   save: (data: { subject_id: number; marks: { student_id: number; marks_data: any }[] }) => 
     api.post('/marks/save/', data),
   list: (subjectId: number) => api.get<any[]>(`/marks/list/${subjectId}/`),
+
+  exportTemplate: (subjectId: number, divisionId: number, batchId?: number) =>
+    api.get('/marks/export-template/', {
+      params: {
+        subject_id: subjectId,
+        division_id: divisionId,
+        ...(batchId ? { batch_id: batchId } : {}),
+      },
+      responseType: 'blob',
+    }),
 };
 
 export const analyticsService = {

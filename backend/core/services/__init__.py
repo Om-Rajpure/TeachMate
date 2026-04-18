@@ -1,0 +1,1 @@
+# TeachMate — Core Services Package

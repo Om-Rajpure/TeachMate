@@ -17,6 +17,7 @@ const Marks = () => {
   const [tab, setTab] = useState<'enter' | 'analytics'>('enter');
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
   const [showUploadModal, setShowUploadModal] = useState(false);
 
   // Metadata State
@@ -201,6 +202,62 @@ const Marks = () => {
     };
   };
 
+  const handleExportTemplate = async () => {
+    // ── Validation ──────────────────────────────────────────
+    if (!selection.subject_id) {
+      toast.error('Please select a subject first');
+      return;
+    }
+    if (!selection.division_id) {
+      toast.error('Please select a division first');
+      return;
+    }
+    if (marksConfig?.type === 'practical' && !selection.batch_id) {
+      // batch is optional for practical — proceed without it
+    }
+
+    setIsExporting(true);
+    try {
+      const res = await markService.exportTemplate(
+        Number(selection.subject_id),
+        Number(selection.division_id),
+        selection.batch_id ? Number(selection.batch_id) : undefined
+      );
+
+      // ── Extract filename from Content-Disposition ────────
+      const disposition = res.headers?.['content-disposition'] || '';
+      const match = disposition.match(/filename="?([^"\n]+)"?/);
+      const filename = match ? match[1] : 'Marks Template.xlsx';
+
+      // ── Trigger browser download ─────────────────────────
+      const url = window.URL.createObjectURL(new Blob([res.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', filename);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+
+      toast.success('Template downloaded successfully! 📥');
+    } catch (err: any) {
+      // Blob error responses need special parsing
+      if (err.response?.data instanceof Blob) {
+        try {
+          const text = await err.response.data.text();
+          const json = JSON.parse(text);
+          toast.error(json.error || 'Export failed');
+        } catch {
+          toast.error('Failed to generate template');
+        }
+      } else {
+        toast.error(err.response?.data?.error || 'Failed to generate template');
+      }
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   const handleSave = async () => {
     if (!selection.subject_id) return;
     setIsSubmitting(true);
@@ -315,8 +372,23 @@ const Marks = () => {
               >
                 <Upload size={14} /> Bulk Upload (Excel)
               </button>
-              <button className="flex items-center gap-2 px-6 py-3 bg-white border border-gray-100 rounded-2xl text-xs font-black uppercase tracking-widest text-text-muted hover:bg-gray-50 transition-all shadow-sm">
-                <Download size={14} /> Export Template
+              <button
+                id="export-template-btn"
+                onClick={handleExportTemplate}
+                disabled={isExporting || !selection.subject_id}
+                className="flex items-center gap-2 px-6 py-3 bg-white border border-gray-100 rounded-2xl text-xs font-black uppercase tracking-widest text-emerald-600 hover:bg-emerald-600 hover:text-white hover:border-emerald-600 transition-all shadow-sm disabled:opacity-50 disabled:cursor-not-allowed relative overflow-hidden group"
+              >
+                {isExporting ? (
+                  <>
+                    <Loader2 size={14} className="animate-spin" />
+                    <span>Generating Template…</span>
+                  </>
+                ) : (
+                  <>
+                    <Download size={14} />
+                    <span>Export Template</span>
+                  </>
+                )}
               </button>
             </div>
 
